@@ -1,4 +1,16 @@
-class Action:
+class Element:
+
+    f_word_index = -1
+    f_name = ""
+    f_sentence = None
+
+    def __init__(self, sentence, index, word):
+        self.f_sentence = sentence
+        self.f_word_index = index
+        self.f_word_index = word
+
+
+class Action(Element):
 
     f_baseForm = None
 
@@ -27,14 +39,22 @@ class Action:
     f_linkType = None
     f_transient = False
 
-class Actor:
+    def __init__(self, sentence, index, verb):
+        super().__init__(sentence, index, verb)
+
+
+class Actor(Element):
 
     f_unreal = False
     f_metaActor = False
     f_passive = False
     f_name = ""
 
-class Resource:
+    def __init__(self, sentence, index, subj):
+        super().__init__(sentence, index, subj)
+
+
+class Resource(Element):
 
     f_wordIndex = -1
     f_name = ""

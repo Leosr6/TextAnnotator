@@ -26,6 +26,8 @@ RELCL = "relcl"
 COP = "cop"
 # A conjunct is the relation between two elements connected by a coordinating conjunction, such as "and", "or", etc.
 CONJ = "conj"
+# A prepositional modifier of a verb, adjective, or noun is any prepositional phrase that serves to modify the meaning of the verb, adjective, noun, or even another prepositon.
+CASE = "case"
 
 
 """
@@ -33,7 +35,9 @@ CONJ = "conj"
 """
 
 ROOT = "ROOT"
+NP = "NP"
 VP = "VP"
 S = "S"
 SBAR = "SBAR"
+SINV = "SINV"
 PRN = "PRN"

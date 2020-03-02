@@ -29,7 +29,7 @@ def find_dep_in_tree(fsentence, dep_index):
     return fsentence[tree_path[:-1]]
 
 
-def filter_by_gov(dependencies, filter):
+def filter_by_gov(dependencies, gov_index):
     deps = [dep for dep in dependencies
-            if filter['governor'] == dep['governor']]
+            if gov_index == dep['governor']]
     return deps

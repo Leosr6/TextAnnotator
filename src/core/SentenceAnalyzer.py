@@ -8,12 +8,14 @@ from utils.Constants import *
 class SentenceAnalyzer(Base):
 
     f_world = None
-    f_sentenceNumber = time()
-    f_sentenceTags = ["S", "SBAR", "SINV"]
+    f_sentence_number = time()
+    f_sentenceTags = [S, SBAR, SINV]
+    f_conjs = []
     f_tokens = []
     f_dependencies = []
     f_analyzed_sentence = None
-    f_full_sentence = ""
+    f_full_sentence = None
+    f_stanford_sentence = None
 
     def __init__(self, world_model):
 
@@ -21,15 +23,16 @@ class SentenceAnalyzer(Base):
 
     def analyze_sentence(self, sentence):
 
-        self.f_sentenceNumber += 1
+        self.f_stanford_sentence = sentence
+        self.f_sentence_number += 1
         self.f_full_sentence = sentence.f_tree
         self.f_tokens = sentence.f_tokens
         self.f_dependencies = sentence.f_dependencies
         self.f_analyzed_sentence = AnalyzedSentence(sentence, sentence.f_tree,
-                                                    self.f_sentenceNumber)
+                                                    self.f_sentence_number)
 
         dependencies = sentence.f_dependencies
-        main_sentence = root[0]
+        main_sentence = sentence.f_tree[0]
 
         self.analyze_recursive(main_sentence, dependencies)
 
@@ -46,12 +49,26 @@ class SentenceAnalyzer(Base):
             filtered_dependencies = self.filter_dependencies(sub_sentence,
                                                              dependencies)
             self.analyze_recursive(sub_sentence, filtered_dependencies)
+            # TO-DO: complete
         else:
             sub_sentences = self.find_sub_sentences(main_sentence)
             for sub_sentence in sub_sentences:
                 filtered_dependencies = self.filter_dependencies(sub_sentence,
                                                                  dependencies)
                 self.analyze_recursive(sub_sentence, filtered_dependencies)
+
+    def filter_dependencies(self, sentence, dependencies):
+        filtered_deps = []
+        start_index = Search.find_sentence_index(self.f_full_sentence, sentence)
+        end_index = start_index + len(sentence.leaves())
+
+        for dep in dependencies:
+            if dep['dep'] == RELCL or \
+                    (start_index <= dep['governor'] <= end_index
+                    and start_index <= dep['dependent'] <= end_index):
+                filtered_deps.append(dep)
+
+        return filtered_deps
 
     def extract_elements(self, sentence, dependencies):
 
@@ -233,6 +250,114 @@ class SentenceAnalyzer(Base):
 
         return actions
 
+    def determine_object(self, sentence, active, verb, dependencies):
+        objects = []
+
+        if not verb.xcomp:
+            xcomp_ojb = self.determine_object_from_dobj(verb, dependencies)
+            if len(xcomp_ojb) > 0:
+                verb.xcomp = xcomp_ojb[0]
+
+        if not active:
+            nsubjpass = Search.find_dependencies(dependencies, NSUBJPASS)
+            nsubjpass = self.exclude_relative_clauses(sentence, nsubjpass)
+            if len(nsubjpass) == 0:
+                objs = self.determine_object_from_dobj(verb, dependencies)
+                objects.extend(objs)
+            else:
+                if len(nsubjpass) > 1:
+                    self.logger.debug("Passive sentence with more than one subject!")
+                dep_in_tree = Search.find_dep_in_tree(self.f_full_sentence,
+                                                      nsubjpass[0]['dependent'])
+                obj = SentenceElements.Object(self.f_stanford_sentence,
+                                              self.f_full_sentence,
+                                              dep_in_tree,
+                                              dependencies)
+                obj.subject_role = True
+                objects.append(obj)
+                # TO-DO: checkNPForSubsentence
+        else:
+            objs = self.determine_object_from_dobj(verb, dependencies)
+            objects.extend(objs)
+
+        if len(objects) > 0:
+            conjs = self.check_conjunctions(dependencies, objects[0], True, False, active)
+            for conj in conjs:
+                if isinstance(conj, SentenceElements.Element):
+                    objects.append(conj)
+
+        return objects
+
+    def determine_object_from_dobj(self, verb, dependencies):
+
+        objects = []
+
+        dobjs = Search.find_dependencies(dependencies, DOBJ)
+        dobjs_filtered = Search.filter_by_gov(dobjs, verb.f_word_index)
+
+        if len(dobjs_filtered) == 0:
+            # TO-DO: XCOMP LOGIC
+            for conj in self.f_conjs:
+                # TO-DO: EQUAL COMP ONLY WORKS IF REFERENCE IS THE SAME
+                if conj.f_to == verb:
+                    # TO-DO: WHICH FILTER TO CHOOSE?
+
+        if len(dobjs_filtered) == 0:
+            preps = Search.find_dependencies(dependencies, CASE)
+            preps_filtered = []
+            for dep in preps:
+                if dep['governorGloss'] in verb.f_name
+                    and dep['governor'] > verb.f_word_index:
+                    preps_filtered.append(dep)
+
+            if len(preps_filtered) == 0:
+                cops = Search.find_dependencies(dependencies, COP)
+                if len(cops) == 0:
+                    self.logger.debug("No Object found")
+                elif len(cops) > 1:
+                    self.logger.info("Sentence with more than one copula object!")
+                    self.logger.debug(cops)
+                else:
+                    dep_in_tree = Search.find_dep_in_tree(self.f_full_sentence,
+                                                     cops[0]['governor'])
+                    if dep_in_tree.parent().parent().label() == NP:
+                        obj = SentenceElements.Object(self.f_stanford_sentence,
+                                                         self.f_full_sentence,
+                                                         dep_in_tree,
+                                                         dependencies)
+                        objects.append(obj)
+                        # TO-DO: checkNPForSubsentence
+                    else:
+                        self.logger.debug("No object found")
+            elif len(preps_filtered) > 1:
+                self.logger.info("Sentence with more than one prepositional object!")
+                self.logger.debug(preps_filtered)
+            else:
+                dep_in_tree = Search.find_dep_in_tree(self.f_full_sentence,
+                                                      preps_filtered[0]['dependent'])
+                if dep_in_tree.parent().parent().label() == NP:
+                    obj = SentenceElements.Object(self.f_stanford_sentence,
+                                                     self.f_full_sentence,
+                                                     dep_in_tree,
+                                                     dependencies)
+                    objects.append(obj)
+                    # TO-DO: checkNPForSubsentence
+                else:
+                    self.logger.debug("No object found")
+        else:
+            dep_in_tree = Search.find_dep_in_tree(self.f_full_sentence,
+                                                  dobjs_filtered[0][
+                                                      'dependent'])
+            obj = SentenceElements.Object(self.f_stanford_sentence,
+                                          self.f_full_sentence,
+                                          dep_in_tree,
+                                          dependencies)
+            objects.append(obj)
+            # TO-DO: checkNPForSubsentence
+
+        return objects
+
+
     def exclude_relative_clauses(self, sentence, dependencies):
 
         relative_clauses = []
@@ -268,7 +393,7 @@ class SentenceAnalyzer(Base):
                 # TO-DO: boolean _xcompHit = (a != null && a.getXcomp() != null && a.getXcomp().getVerb().contains(td.gov().value()));
                 _xcompHit = True
                 if (conj['governorGloss'] == element.f_name
-                        and len(Search.filter_by_gov(conj, cops)) == 0) \
+                        and len(Search.filter_by_gov(cops, conj['governor'])) == 0) \
                     or _xcompHit:
                     dep_index = dep['dependent'] - 1
                     dep_in_tree = Search.find_dep_in_tree(self.f_full_sentence,
@@ -278,6 +403,7 @@ class SentenceAnalyzer(Base):
                             new_ele = SentenceElements.Actor()
                         else:
                             new_ele = SentenceElements.Object()
+                            # TO-DO: checkNPForSubsentence
                     else:
                         if _xcompHit:
                             new_ele = deepcopy(action)

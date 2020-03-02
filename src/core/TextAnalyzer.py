@@ -1,38 +1,39 @@
-from spacy.pipeline import Sentencizer
+from core.CoreNLPWrapper import CoreNLPWrapper
 from data import WorldModel
 import SentenceAnalyzer
+import StanfordSentence
 
 class TextAnalyzer:
 
     f_world = None
     f_text = ""
-    nlp = None
+    f_parser = None
 
     def __init__(self, **kwargs):
 
-        nlp = kwargs.get("nlp", spacy.load("en_core_web_sm"))
-
         self.f_world = WorldModel()
-        self.nlp = nlp
+        self.f_parser = CoreNLPWrapper()
 
     def analyze_text(self, text):
 
         self.f_text = text
+        sentence_analyzer = SentenceAnalyzer(self.f_world)
 
-        sentence_analyzer = SentenceAnalyzer(self.f_world, self.nlp)
-        sentences = self.get_sentences()
+        sentences = self.create_stanford_sentences(text)
 
-        for sent in sentences:
-            sentence_analyzer.analyze_sentence(sent)
+        for stanford_sentence in sentences:
+            sentence_analyzer.analyze_sentence(stanford_sentence)
 
-    def get_sentences(self, text):
-        sentencizer = Sentencizer()
-        nlp = self.nlp
+    def create_stanford_sentences(self, text):
 
-        # Disable all other pipes and apply only the sentencizer
-        with nlp.disable_pipes(nlp.pipe_names):
-            nlp.add_pipe(sentencizer)
-            sents = nlp(text).sents
-            nlp.remove_pipe(sentencizer.name)
+        # List of standford_sentences
+        stanford_sentences = []
 
-        return list(sents)
+        sentences = self.f_parser.parse_text(text)
+
+        for sentence in sentences:
+            tree, deps, tokens = sentence
+            s_sentence = StanfordSentence(tree, deps, tokens)
+            stanford_sentences.append(s_sentence)
+
+        return stanford_sentences

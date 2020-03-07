@@ -43,6 +43,11 @@ def get_full_phrase_tree(tree_node, type):
     return node
 
 
+def get_full_phrase(tree_node, type):
+    tree = get_full_phrase_tree(tree_node, type)
+    return " ".join(tree.leaves())
+
+
 def find_in_tree(tree, types, exclude):
     result = []
     if tree.label() in types:

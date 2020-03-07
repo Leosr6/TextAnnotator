@@ -32,6 +32,23 @@ PREP = "prep"
 XCOMP = "xcomp"
 # A dependency is labeled as dep when the system is unable to determine a more precise dependency relation between two words.
 DEP = "dep"
+# A noun compound modifier of an NP is any noun that serves to modify the head noun.
+NN = "nn"
+AUX = "aux"
+AUXPASS = "auxpass"
+ADVMOD = "advmod"
+ACOMP = "acomp"
+NEG = "neg"
+PRT = "prt"
+PREPC = "prepc"
+ADJP = "adjp"
+POSS = "poss"
+DET = "det"
+INFMOD = "infmod"
+PARTMOD = "partmod"
+NUM = "num"
+AMOD = "amod"
+NNAFTER = "nnafter"
 
 
 """
@@ -55,3 +72,13 @@ IOBJ = "IOBJ"
 """
 
 f_realActorPPIndicators = []
+f_sequenceIndicators = []
+f_relativeResolutionTags = []
+f_relativeResolutionWords = []
+f_conditionIndicators = []
+
+"""
+    TO-DO: write description
+"""
+
+OF = "of"

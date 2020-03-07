@@ -1,6 +1,12 @@
 class WordNetWrapper:
-    def person_or_system(self, full_noun, name):
+    @staticmethod
+    def person_or_system(full_noun, name):
         pass
 
-    def group_action(self, name):
+    @staticmethod
+    def group_action(name):
+        pass
+
+    @staticmethod
+    def is_meta_actor(full_noun, param):
         pass

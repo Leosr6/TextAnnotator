@@ -1,7 +1,7 @@
 from time import time
 from copy import deepcopy
 from core.Base import Base
-#from core.ElementsBuilder import ElementsBuilder as Builder
+from core.ElementsBuilder import ElementsBuilder as Builder
 from data.AnalyzedSentence import AnalyzedSentence
 from data.SentenceElements import *
 from utils import Search
@@ -248,7 +248,7 @@ class SentenceAnalyzer(Base):
                 cop = Search.find_dependencies(dependencies, COP)
                 cop = self.exclude_relative_clauses(sentence, cop)
                 for dep in cop:
-                    if dep['governor'] == main_predicate:
+                    if dep['governor'] == main_predicate_index:
                         main_predicate_index = dep['dependent']
                         break
             else:
@@ -282,7 +282,7 @@ class SentenceAnalyzer(Base):
                 self.logger.info("Sentence has more than one verb phrase")
             else:
                 vp = verbs[0]
-                action = Builder.create_action_syntax(sentence, self.full_sentence, vp, active)
+                action = Builder.create_action_syntax(sentence, self.full_sentence, vp)
                 self.check_sub_sentences(vp, dependencies, action, False)
                 actions.append(action)
 
@@ -310,13 +310,8 @@ class SentenceAnalyzer(Base):
             else:
                 if len(nsubjpass) > 1:
                     self.logger.debug("Passive sentence with more than one subject!")
-                dep_in_tree = Search.find_dep_in_tree(self.f_full_sentence,
-                                                      nsubjpass[0]['dependent'])
-                obj = Object(self.f_stanford_sentence,
-                                              self.f_full_sentence,
-                                              dep_in_tree,
-                                              dependencies)
-                obj.subject_role = True
+                obj = Builder.create_object(self.f_stanford_sentence, self.f_full_sentence, nsubjpass[0]['dependent'], dependencies)
+                obj.f_subjectRole = True
                 objects.append(obj)
                 # TODO: checkNPForSubsentence
         else:
@@ -365,10 +360,7 @@ class SentenceAnalyzer(Base):
                     dep_in_tree = Search.find_dep_in_tree(self.f_full_sentence,
                                                      cops[0]['governor'])
                     if dep_in_tree.parent().parent().label() == NP:
-                        obj = Object(self.f_stanford_sentence,
-                                                         self.f_full_sentence,
-                                                         dep_in_tree,
-                                                         dependencies)
+                        obj = Builder.create_object(self.f_stanford_sentence, self.f_full_sentence, cops[0]['governor'], dependencies)
                         objects.append(obj)
                         # TODO: checkNPForSubsentence
                     else:
@@ -380,22 +372,13 @@ class SentenceAnalyzer(Base):
                 dep_in_tree = Search.find_dep_in_tree(self.f_full_sentence,
                                                       preps_filtered[0]['dependent'])
                 if dep_in_tree.parent().parent().label() == NP:
-                    obj = Object(self.f_stanford_sentence,
-                                                     self.f_full_sentence,
-                                                     dep_in_tree,
-                                                     dependencies)
+                    obj = Builder.create_object(self.f_stanford_sentence, self.f_full_sentence, preps_filtered[0]['dependent'], dependencies)
                     objects.append(obj)
                     # TODO: checkNPForSubsentence
                 else:
                     self.logger.debug("No object found")
         else:
-            dep_in_tree = Search.find_dep_in_tree(self.f_full_sentence,
-                                                  dobjs_filtered[0][
-                                                      'dependent'])
-            obj = Object(self.f_stanford_sentence,
-                                          self.f_full_sentence,
-                                          dep_in_tree,
-                                          dependencies)
+            obj = Builder.create_object(self.f_stanford_sentence, self.f_full_sentence, dobjs_filtered[0]['dependent'], dependencies)
             objects.append(obj)
             # TODO: checkNPForSubsentence
 
@@ -442,7 +425,7 @@ class SentenceAnalyzer(Base):
                 if (conj['governorGloss'] == element.f_name
                         and len(Search.filter_by_gov(cops, conj['governor'])) == 0) \
                         or x_comp_hit:
-                    dep_index = dep['dependent']
+                    dep_index = conj['dependent']
                     if object:
                         if actor:
                             new_ele = Builder.create_actor(

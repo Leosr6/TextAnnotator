@@ -33,3 +33,22 @@ def filter_by_gov(dependencies, gov_index):
     deps = [dep for dep in dependencies
             if gov_index == dep['governor']]
     return deps
+
+
+def get_full_phrase_tree(tree_node, type):
+    node = tree_node
+    while node and node.label() != type and node.label()[0] != "W":
+        node = node.parent()
+
+    return node
+
+
+def find_in_tree(tree, types, exclude):
+    result = []
+    if tree.label() in types:
+        result.append(tree)
+    for child in list(tree):
+        if not isinstance(child, str) and child.label() not in exclude:
+            result.extend(find_in_tree(child, types, exclude))
+
+    return result

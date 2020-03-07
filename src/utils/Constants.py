@@ -21,13 +21,17 @@ CSUBJPASS = "csubjpass"
 # An agent is the complement of a passive verb which is introduced by the preposition "by"
 AGENT = "nmod:agent"
 # A relative clause modifier of an NP is a relative clause modifying the NP
-RELCL = "relcl"
+RCMOD = "rcmod"
 # A copula is the relation between the complement of a copular verb and the copular verb.
 COP = "cop"
 # A conjunct is the relation between two elements connected by a coordinating conjunction, such as "and", "or", etc.
 CONJ = "conj"
 # A prepositional modifier of a verb, adjective, or noun is any prepositional phrase that serves to modify the meaning of the verb, adjective, noun, or even another prepositon.
-CASE = "case"
+PREP = "prep"
+# An open clausal complement (xcomp) of a verb or an adjective is a predicative or clausal complement without its own subject.
+XCOMP = "xcomp"
+# A dependency is labeled as dep when the system is unable to determine a more precise dependency relation between two words.
+DEP = "dep"
 
 
 """
@@ -41,3 +45,13 @@ S = "S"
 SBAR = "SBAR"
 SINV = "SINV"
 PRN = "PRN"
+PP = "PP"
+ADVP = "ADVP"
+CD = "CD"
+IOBJ = "IOBJ"
+
+"""
+    TO-DO: write description
+"""
+
+f_realActorPPIndicators = []

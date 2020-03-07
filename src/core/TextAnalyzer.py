@@ -1,7 +1,7 @@
 from core.CoreNLPWrapper import CoreNLPWrapper
-from data import WorldModel
-import SentenceAnalyzer
-import StanfordSentence
+from data.WorldModel import WorldModel
+from core.SentenceAnalyzer import SentenceAnalyzer
+from data.StanfordSentence import StanfordSentence
 
 class TextAnalyzer:
 

@@ -49,6 +49,8 @@ PARTMOD = "partmod"
 NUM = "num"
 AMOD = "amod"
 NNAFTER = "nnafter"
+CCOMP = "ccomp"
+COMPLM = "complm"
 
 
 """
@@ -76,9 +78,15 @@ f_sequenceIndicators = []
 f_relativeResolutionTags = []
 f_relativeResolutionWords = []
 f_conditionIndicators = []
+f_exampleIndicators = []
 
 """
     TO-DO: write description
 """
 
 OF = "of"
+THAT = "that"
+OR = "or"
+AND = "and"
+ANDOR = "and\\/or"
+BUT = "but"

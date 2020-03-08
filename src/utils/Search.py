@@ -25,7 +25,7 @@ def find_sentence_index(fsentence, sentence):
 
 
 def find_dep_in_tree(fsentence, dep_index):
-    tree_path = list(fsentence.leaf_treeposition(dep_index))
+    tree_path = list(fsentence.leaf_treeposition(dep_index - 1))
     return fsentence[tree_path[:-1]]
 
 

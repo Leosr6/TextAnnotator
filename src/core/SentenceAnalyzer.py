@@ -4,15 +4,15 @@ from core.Base import Base
 from core.ElementsBuilder import ElementsBuilder as Builder
 from data.AnalyzedSentence import AnalyzedSentence
 from data.SentenceElements import *
+from data.ConjunctionElement import ConjunctionElement
 from utils import Search
 from utils.Constants import *
 
-class SentenceAnalyzer(Base):
 
+class SentenceAnalyzer(Base):
     f_world = None
     f_sentence_number = time()
     f_sentenceTags = [S, SBAR, SINV]
-    f_conjs = []
     f_tokens = []
     f_dependencies = []
     f_analyzed_sentence = None
@@ -37,7 +37,15 @@ class SentenceAnalyzer(Base):
         main_sentence = sentence.f_tree[0]
 
         self.analyze_recursive(main_sentence, dependencies)
-        # TO-DO: complete
+        self.check_global_conjunctions()
+
+        actions = self.f_analyzed_sentence.f_actions
+        actions.sort(key=lambda a: a.f_word_index)
+
+        for action in actions:
+            self.f_world.add_action(action)
+
+        self.logger.debug("Extracted actions {}".format(actions))
 
         return self.f_analyzed_sentence
 
@@ -52,7 +60,14 @@ class SentenceAnalyzer(Base):
             filtered_dependencies = self.filter_dependencies(sub_sentence,
                                                              dependencies)
             self.analyze_recursive(sub_sentence, filtered_dependencies)
-            # TO-DO: complete
+
+            main_sentence_copy = deepcopy(main_sentence)
+            sub_sentence_index = sub_sentence.treeposition()[1:]
+            del(main_sentence_copy[sub_sentence_index])
+            deps = [dep for dep in dependencies if dep['dep'] == RCMOD or dep not in filtered_dependencies]
+            if len(Search.find_dependencies(deps, (NSUBJ, AGENT, NSUBJPASS, DOBJ))) > 0:
+                self.extract_elements(main_sentence_copy, deps)
+
         else:
             sub_sentences = self.find_sub_sentences(main_sentence)
             for sub_sentence in sub_sentences:
@@ -68,7 +83,7 @@ class SentenceAnalyzer(Base):
         for dep in dependencies:
             if dep['dep'] == RCMOD or \
                     (start_index <= dep['governor'] <= end_index
-                    and start_index <= dep['dependent'] <= end_index):
+                     and start_index <= dep['dependent'] <= end_index):
                 filtered_deps.append(dep)
 
         return filtered_deps
@@ -78,14 +93,15 @@ class SentenceAnalyzer(Base):
         active = self.is_active_sentence(sentence, dependencies)
         actors = self.determine_subjects(sentence, dependencies, active)
         verbs = self.determine_verbs(sentence, dependencies, active)
-        # TO-DO: removeExamples
+        verbs = self.remove_examples(verbs)
+
         actions = []
         all_objects = []
 
         # Creating actions from verbs
         for verb in verbs:
             objects = self.determine_object(sentence, verb, dependencies, active)
-            self.filter_verb(verb, actors, objects);
+            self.filter_verb(verb, actors, objects)
             all_objects.extend(objects)
 
             if len(objects) > 0:
@@ -120,17 +136,18 @@ class SentenceAnalyzer(Base):
             else:
                 self.f_world.add_resource(el)
 
-        for action in actions:
+        for action in final_actions:
             self.f_analyzed_sentence.add_action(action)
-            actor = action.get("actor")
-            el = action.get("object")
-            if actor:
-                self.f_world.add_actor(actor)
-            if el:
-                if isinstance(el, Actor):
-                    self.f_world.add_actor(el)
-                else:
-                    self.f_world.add_resource(el)
+            if action.f_xcomp:
+                actor_from = action.f_xcomp.f_actorFrom
+                obj = action.f_xcomp.f_object
+                if actor_from:
+                    self.f_world.add_actor(actor_from)
+                if obj:
+                    if isinstance(obj, Actor):
+                        self.f_world.add_actor(obj)
+                    else:
+                        self.f_world.add_resource(obj)
 
     def filter_verb(self, verb, actors, objects):
         to_check = []
@@ -193,6 +210,7 @@ class SentenceAnalyzer(Base):
         It's possible that a sentence has no actor
         For example: passive sentence and relative pronouns
     """
+
     def determine_subjects(self, sentence, dependencies, active):
         actors = []
 
@@ -201,7 +219,7 @@ class SentenceAnalyzer(Base):
         # Find main actor
 
         subj = Search.find_dependencies(dependencies, NSUBJ) if active else \
-               Search.find_dependencies(dependencies, AGENT)
+            Search.find_dependencies(dependencies, AGENT)
 
         subj = self.exclude_relative_clauses(sentence, subj)
         if len(subj) == 0:
@@ -268,10 +286,10 @@ class SentenceAnalyzer(Base):
 
         if main_predicate_index:
             main_predicate = Search.find_dep_in_tree(self.f_full_sentence,
-                                                     main_predicate_index - 1)
+                                                     main_predicate_index)
             vp_head = Search.get_full_phrase_tree(main_predicate, VP)
-            action = Action(sentence, self.full_sentence, main_predicate,
-                            dependencies, active)
+            action = Builder.create_action(self.f_full_sentence, self.f_full_sentence,
+                                           main_predicate_index, dependencies, active)
             self.check_sub_sentences(vp_head, dependencies, action, False)
             actions.append(action)
         else:
@@ -282,7 +300,7 @@ class SentenceAnalyzer(Base):
                 self.logger.info("Sentence has more than one verb phrase")
             else:
                 vp = verbs[0]
-                action = Builder.create_action_syntax(sentence, self.full_sentence, vp)
+                action = Builder.create_action_syntax(self.f_stanford_sentence, self.f_full_sentence, vp)
                 self.check_sub_sentences(vp, dependencies, action, False)
                 actions.append(action)
 
@@ -335,7 +353,7 @@ class SentenceAnalyzer(Base):
 
         if len(dobjs_filtered) == 0:
             if not verb.f_xcomp or not verb.f_xcomp.f_object:
-                for conj in self.f_conjs:
+                for conj in self.f_analyzed_sentence.f_conjs:
                     # TODO: EQUAL COMP ONLY WORKS IF REFERENCE IS THE SAME
                     if conj.f_to == verb:
                         print("TODO")
@@ -358,7 +376,7 @@ class SentenceAnalyzer(Base):
                     self.logger.debug(cops)
                 else:
                     dep_in_tree = Search.find_dep_in_tree(self.f_full_sentence,
-                                                     cops[0]['governor'])
+                                                          cops[0]['governor'])
                     if dep_in_tree.parent().parent().label() == NP:
                         obj = Builder.create_object(self.f_stanford_sentence, self.f_full_sentence, cops[0]['governor'], dependencies)
                         objects.append(obj)
@@ -384,7 +402,6 @@ class SentenceAnalyzer(Base):
 
         return objects
 
-
     def exclude_relative_clauses(self, sentence, dependencies):
 
         relative_clauses = []
@@ -393,9 +410,8 @@ class SentenceAnalyzer(Base):
             if dep['dep'] != RCMOD:
                 sentence_index = Search.find_sentence_index(self.f_full_sentence,
                                                             sentence)
-                dep_index = dep['dependent'] - 1
                 dep_in_tree = Search.find_dep_in_tree(self.f_full_sentence,
-                                                      dep_index)
+                                                      dep['dependent'])
 
                 while dep_in_tree.label() != ROOT:
 
@@ -413,7 +429,7 @@ class SentenceAnalyzer(Base):
 
         return [dep for dep in dependencies if dep not in relative_clauses]
 
-    def check_conjunctions(self, dependencies, element, object, actor, active):
+    def check_conjunctions(self, dependencies, element, obj, actor, active):
         results = []
         conjs = Search.find_dependencies(dependencies, CONJ)
         cops = Search.find_dependencies(dependencies, COP)
@@ -423,10 +439,10 @@ class SentenceAnalyzer(Base):
             for conj in conjs:
                 x_comp_hit = True if action and action.f_xcomp and conj['governorGloss'] in action.f_xcomp.f_baseForm else False
                 if (conj['governorGloss'] == element.f_name
-                        and len(Search.filter_by_gov(cops, conj['governor'])) == 0) \
+                    and len(Search.filter_by_gov(cops, conj['governor'])) == 0) \
                         or x_comp_hit:
                     dep_index = conj['dependent']
-                    if object:
+                    if obj:
                         if actor:
                             new_ele = Builder.create_actor(
                                 self.f_stanford_sentence,
@@ -451,7 +467,7 @@ class SentenceAnalyzer(Base):
 
                     if conj['dependent'] != conj['governor']:
                         results.append(new_ele)
-                        # TODO: buildLink(current, td, _newEle);
+                        self.build_link(element, conj, new_ele)
 
         return results
 
@@ -487,4 +503,65 @@ class SentenceAnalyzer(Base):
 
         return result
 
+    def check_sub_sentences(self, vp, dependencies, obj, is_np):
 
+        if vp.label() in self.f_sentenceTags:
+            leaves = vp.leaves()
+            start_index = Search.find_sentence_index(self.f_full_sentence, leaves)
+            end_index = start_index + len(leaves)
+            ccomps = Search.find_dependencies(dependencies, CCOMP)
+
+            for ccomp in ccomps:
+                if start_index < ccomp['dependent'] < end_index:
+                    complms = Search.find_dependencies(dependencies, COMPLM)
+                    for complm in complms:
+                        if complm['governor'] == ccomp['dependent'] and complm['dependentGloss'] == THAT:
+                            return
+
+            action = obj if isinstance(obj, Action) else None
+            if not action or not action.f_xcomp or start_index > action.f_xcomp.f_word_index or end_index < action.f_xcomp.f_word_index:
+                self.analyze_recursive(vp, self.filter_dependencies(vp, dependencies))
+        else:
+            if vp.label() in (PP, VP) or (vp.label() == NP and is_np):
+                for child in vp:
+                    self.check_sub_sentences(child, dependencies, obj, is_np)
+
+    @staticmethod
+    def remove_examples(verbs):
+        examples = []
+        for action in verbs:
+            for spec in action.f_specifiers:
+                if spec.f_name in f_exampleIndicators:
+                    examples.append(action)
+
+        return [verb for verb in verbs if verb not in examples]
+
+    def build_link(self, element, dep, new_ele):
+        conjunction = None
+        conj_type = dep['dep']
+
+        # TODO: conj_type.getSpecific
+        if conj_type in (OR, AND, ANDOR):
+            conjunction = ConjunctionElement(element, new_ele, conj_type)
+        elif conj_type != BUT:
+            self.logger.error("Undefined conjunction relation {}".format(conj_type))
+
+        if conjunction:
+            self.f_analyzed_sentence.f_conjs.append(conjunction)
+
+    def check_global_conjunctions(self):
+        conj = Search.find_dependencies(self.f_dependencies, CONJ)
+
+        for dep in conj:
+            action_from = self.get_action_containing(dep['governor'])
+            action_to = self.get_action_containing(dep['dependent'])
+            if action_from and action_to:
+                self.build_link(action_from, action_to, dep)
+
+    def get_action_containing(self, node_index):
+        for action in self.f_analyzed_sentence.f_actions:
+            if action.f_word_index == node_index or \
+                    (action.f_xcomp and action.f_xcomp.f_word_index == node_index) or \
+                    (action.f_copIndex == node_index) or \
+                    (action.f_object and action.f_object.f_word_index == node_index):
+                return action

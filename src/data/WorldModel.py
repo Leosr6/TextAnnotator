@@ -7,10 +7,10 @@ class WorldModel:
     f_lastFlowAdded = None
 
     def add_action(self, action):
-        self.f_actions.push(action)
+        self.f_actions.append(action)
 
     def add_actor(self, actor):
-        self.f_actors.push(actor)
+        self.f_actors.append(actor)
 
     def add_resource(self, resource):
-        self.f_resources.push(resource)
+        self.f_resources.append(resource)

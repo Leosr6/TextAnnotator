@@ -18,6 +18,7 @@ class SentenceAnalyzer(Base):
     f_analyzed_sentence = None
     f_full_sentence = None
     f_stanford_sentence = None
+    f_ignore_np_subsentences = False
 
     def __init__(self, world_model):
 
@@ -108,7 +109,7 @@ class SentenceAnalyzer(Base):
                 # One verb can generate multiple actions
                 for el in objects:
                     new_action = deepcopy(verb)
-                    new_action["object"] = el
+                    new_action.f_object = el
                     actions.append(new_action)
             else:
                 actions.append(verb)
@@ -120,7 +121,7 @@ class SentenceAnalyzer(Base):
             for actor in actors:
                 for action in actions:
                     new_action = deepcopy(action)
-                    new_action["actor"] = actor
+                    new_action.f_actor = actor
                     final_actions.append(new_action)
         else:
             final_actions = actions
@@ -137,7 +138,7 @@ class SentenceAnalyzer(Base):
                 self.f_world.add_resource(el)
 
         for action in final_actions:
-            self.f_analyzed_sentence.add_action(action)
+            self.f_analyzed_sentence.f_actions.append(action)
             if action.f_xcomp:
                 actor_from = action.f_xcomp.f_actorFrom
                 obj = action.f_xcomp.f_object
@@ -311,13 +312,13 @@ class SentenceAnalyzer(Base):
 
         return actions
 
-    def determine_object(self, sentence, active, verb, dependencies):
+    def determine_object(self, sentence, verb, dependencies, active):
         objects = []
 
-        if not verb.xcomp:
+        if verb.f_xcomp:
             xcomp_ojb = self.determine_object_from_dobj(verb, dependencies)
             if len(xcomp_ojb) > 0:
-                verb.xcomp = xcomp_ojb[0]
+                verb.f_xcomp.f_object = xcomp_ojb[0]
 
         if not active:
             nsubjpass = Search.find_dependencies(dependencies, NSUBJPASS)
@@ -328,10 +329,11 @@ class SentenceAnalyzer(Base):
             else:
                 if len(nsubjpass) > 1:
                     self.logger.debug("Passive sentence with more than one subject!")
-                obj = Builder.create_object(self.f_stanford_sentence, self.f_full_sentence, nsubjpass[0]['dependent'], dependencies)
+                dep_index = nsubjpass[0]['dependent']
+                obj = Builder.create_object(self.f_stanford_sentence, self.f_full_sentence, dep_index, dependencies)
                 obj.f_subjectRole = True
                 objects.append(obj)
-                # TODO: checkNPForSubsentence
+                self.check_np_sub_sentences(dep_index, dependencies, obj)
         else:
             objs = self.determine_object_from_dobj(verb, dependencies)
             objects.extend(objs)
@@ -349,15 +351,18 @@ class SentenceAnalyzer(Base):
         objects = []
 
         dobjs = Search.find_dependencies(dependencies, DOBJ)
-        dobjs_filtered = Search.filter_by_gov(dobjs, verb.f_word_index)
+        dobjs_filtered = Search.filter_by_gov(dobjs, verb)
 
         if len(dobjs_filtered) == 0:
             if not verb.f_xcomp or not verb.f_xcomp.f_object:
                 for conj in self.f_analyzed_sentence.f_conjs:
-                    # TODO: EQUAL COMP ONLY WORKS IF REFERENCE IS THE SAME
-                    if conj.f_to == verb:
-                        print("TODO")
-                        # TODO: WHICH FILTER TO CHOOSE?
+                    # TODO: check if logic is correct
+                    if conj.f_to.f_word_index == verb.f_word_index:
+                        #dobjs_filtered.extend(Search.filter_by_gov(dobjs, conj.f_from))
+                        dobjs_filtered = [dep for dep in dobjs if conj.f_to.f_word_index < dep['dependent']]
+                    else:
+                        #dobjs_filtered.extend(Search.filter_by_gov(dobjs, conj.f_to))
+                        dobjs_filtered = [dep for dep in dobjs if conj.f_from.f_word_index < dep['dependent']]
 
         if len(dobjs_filtered) == 0:
             preps = Search.find_dependencies(dependencies, PREP)
@@ -375,30 +380,31 @@ class SentenceAnalyzer(Base):
                     self.logger.info("Sentence with more than one copula object!")
                     self.logger.debug(cops)
                 else:
-                    dep_in_tree = Search.find_dep_in_tree(self.f_full_sentence,
-                                                          cops[0]['governor'])
+                    dep_index = cops[0]['governor']
+                    dep_in_tree = Search.find_dep_in_tree(self.f_full_sentence, dep_index)
                     if dep_in_tree.parent().parent().label() == NP:
-                        obj = Builder.create_object(self.f_stanford_sentence, self.f_full_sentence, cops[0]['governor'], dependencies)
+                        obj = Builder.create_object(self.f_stanford_sentence, self.f_full_sentence, dep_index, dependencies)
                         objects.append(obj)
-                        # TODO: checkNPForSubsentence
+                        self.check_np_sub_sentences(dep_index, dependencies, obj)
                     else:
                         self.logger.debug("No object found")
             elif len(preps_filtered) > 1:
                 self.logger.info("Sentence with more than one prepositional object!")
                 self.logger.debug(preps_filtered)
             else:
-                dep_in_tree = Search.find_dep_in_tree(self.f_full_sentence,
-                                                      preps_filtered[0]['dependent'])
+                dep_index = preps_filtered[0]['dependent']
+                dep_in_tree = Search.find_dep_in_tree(self.f_full_sentence, dep_index)
                 if dep_in_tree.parent().parent().label() == NP:
-                    obj = Builder.create_object(self.f_stanford_sentence, self.f_full_sentence, preps_filtered[0]['dependent'], dependencies)
+                    obj = Builder.create_object(self.f_stanford_sentence, self.f_full_sentence, dep_index, dependencies)
                     objects.append(obj)
-                    # TODO: checkNPForSubsentence
+                    self.check_np_sub_sentences(dep_index, dependencies, obj)
                 else:
                     self.logger.debug("No object found")
         else:
-            obj = Builder.create_object(self.f_stanford_sentence, self.f_full_sentence, dobjs_filtered[0]['dependent'], dependencies)
+            dep_index = dobjs_filtered[0]['dependent']
+            obj = Builder.create_object(self.f_stanford_sentence, self.f_full_sentence, dep_index, dependencies)
             objects.append(obj)
-            # TODO: checkNPForSubsentence
+            self.check_np_sub_sentences(dep_index, dependencies, obj)
 
         return objects
 
@@ -453,7 +459,7 @@ class SentenceAnalyzer(Base):
                                 self.f_stanford_sentence,
                                 self.f_full_sentence, dep_index,
                                 dependencies)
-                            # TODO: checkNPForSubsentence
+                            self.check_np_sub_sentences(dep_index, dependencies, new_ele)
                     else:
                         if x_comp_hit:
                             new_ele = deepcopy(action)
@@ -503,10 +509,10 @@ class SentenceAnalyzer(Base):
 
         return result
 
-    def check_sub_sentences(self, vp, dependencies, obj, is_np):
+    def check_sub_sentences(self, head, dependencies, obj, is_np):
 
-        if vp.label() in self.f_sentenceTags:
-            leaves = vp.leaves()
+        if head.label() in self.f_sentenceTags:
+            leaves = head.leaves()
             start_index = Search.find_sentence_index(self.f_full_sentence, leaves)
             end_index = start_index + len(leaves)
             ccomps = Search.find_dependencies(dependencies, CCOMP)
@@ -520,10 +526,10 @@ class SentenceAnalyzer(Base):
 
             action = obj if isinstance(obj, Action) else None
             if not action or not action.f_xcomp or start_index > action.f_xcomp.f_word_index or end_index < action.f_xcomp.f_word_index:
-                self.analyze_recursive(vp, self.filter_dependencies(vp, dependencies))
+                self.analyze_recursive(head, self.filter_dependencies(head, dependencies))
         else:
-            if vp.label() in (PP, VP) or (vp.label() == NP and is_np):
-                for child in vp:
+            if head.label() in (PP, VP) or (head.label() == NP and is_np):
+                for child in head:
                     self.check_sub_sentences(child, dependencies, obj, is_np)
 
     @staticmethod
@@ -538,9 +544,8 @@ class SentenceAnalyzer(Base):
 
     def build_link(self, element, dep, new_ele):
         conjunction = None
-        conj_type = dep['dep']
+        conj_type = dep['spec']
 
-        # TODO: conj_type.getSpecific
         if conj_type in (OR, AND, ANDOR):
             conjunction = ConjunctionElement(element, new_ele, conj_type)
         elif conj_type != BUT:
@@ -556,7 +561,7 @@ class SentenceAnalyzer(Base):
             action_from = self.get_action_containing(dep['governor'])
             action_to = self.get_action_containing(dep['dependent'])
             if action_from and action_to:
-                self.build_link(action_from, action_to, dep)
+                self.build_link(action_from, dep, action_to)
 
     def get_action_containing(self, node_index):
         for action in self.f_analyzed_sentence.f_actions:
@@ -565,3 +570,9 @@ class SentenceAnalyzer(Base):
                     (action.f_copIndex == node_index) or \
                     (action.f_object and action.f_object.f_word_index == node_index):
                 return action
+
+    def check_np_sub_sentences(self, dep_index, dependencies, obj):
+        if not self.f_ignore_np_subsentences:
+            dep_in_tree = Search.find_dep_in_tree(self.f_full_sentence, dep_index)
+            head = Search.get_full_phrase_tree(dep_in_tree, NP)
+            self.check_sub_sentences(head, dependencies, obj, True)

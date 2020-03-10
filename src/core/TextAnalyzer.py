@@ -17,12 +17,16 @@ class TextAnalyzer:
     def analyze_text(self, text):
 
         self.f_text = text
+
+        result = []
         sentence_analyzer = SentenceAnalyzer(self.f_world)
 
         sentences = self.create_stanford_sentences(text)
 
         for stanford_sentence in sentences:
-            sentence_analyzer.analyze_sentence(stanford_sentence)
+            result.append(sentence_analyzer.analyze_sentence(stanford_sentence))
+
+        return result
 
     def create_stanford_sentences(self, text):
 

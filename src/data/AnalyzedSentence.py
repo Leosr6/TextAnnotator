@@ -13,6 +13,5 @@ class AnalyzedSentence:
         self.f_sentence = sentence
         self.f_root = root
         self.f_sentenceNumber = snumber
-
-    def add_action(self, action):
-        self.f_actions.append(action)
+        self.f_conjs = []
+        self.f_actions = []

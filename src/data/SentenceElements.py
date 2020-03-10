@@ -9,6 +9,7 @@ class Element:
         self.f_sentence = sentence
         self.f_word_index = index
         self.f_name = word
+        self.f_specifiers = []
 
     def get_specifiers(self, types):
         # TO-DO: EQUAL COMP ONLY WORKS IF REFERENCE IS THE SAME
@@ -73,14 +74,10 @@ class Actor(ExtractedObject):
     f_unreal = False
     f_metaActor = False
     f_passive = False
-    f_name = ""
 
     # def __init__(self, sentence, index, subj):
     #     super().__init__(sentence, index, subj)
 
 
 class Resource(ExtractedObject):
-
-    f_wordIndex = -1
-    f_name = ""
-    f_origin = None  # Stanford Sentence
+    pass

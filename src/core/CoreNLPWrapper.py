@@ -3,43 +3,49 @@
     dependency parser instead of the basicDependencies
 """
 
-from nltk.parse import corenlp
+from nltk.parse.corenlp import GenericCoreNLPParser
+from nltk.tree import ParentedTree
+import xmltodict as xml
+import json
+from utils.Constants import SPEC_SPLIT, PUNCT
 
 
-def transform(sentence):
-    for dependency in sentence['enhancedPlusPlusDependencies']:
-        dependent_index = dependency['dependent']
-        token = sentence['tokens'][dependent_index - 1]
+class CoreNLPWrapper(GenericCoreNLPParser):
 
-        # Return values that we don't know as '_'. Also, consider tag and ctag
-        # to be equal.
-        yield (
-            '_',
-            str(dependent_index),
-            token['word'],
-            token['lemma'],
-            token['pos'],
-            token['pos'],
-            '_',
-            str(dependency['governor']),
-            dependency['dep'],
-            '_',
-            '_',
-        )
+    def make_deps(self, dependencies):
+        result = []
 
+        for dep in dependencies:
+            parsed_dep = dep['@type'].split(SPEC_SPLIT)
+            if parsed_dep[0] != PUNCT:
+                result.append({
+                    'dep': parsed_dep[0], 'spec': parsed_dep[1] if len(parsed_dep) > 1 else None,
+                    'dependent': int(dep['dependent']['@idx']), 'dependentGloss': dep['dependent']['#text'],
+                    'governor': int(dep['governor']['@idx']), 'governorGloss': dep['governor']['#text']
+                })
 
-corenlp.transform = transform
-CoreNLPParser = corenlp.CoreNLPParser
-CoreNLPDependencyParser = corenlp.CoreNLPDependencyParser
-
-
-class CoreNLPWrapper(CoreNLPParser, CoreNLPDependencyParser):
+        return result
 
     def parse_text(self, text):
-        parsed_data = self.api_call(text)
+        default_properties = {
+            'outputFormat': 'xml',
+            'annotators': 'tokenize,pos,lemma,ssplit,parse,depparse'
+        }
 
-        for sentence in parsed_data['sentences']:
-            yield (CoreNLPParser.make_tree(self, sentence),
-                   sentence['enhancedPlusPlusDependencies'],
-                   #CoreNLPDependencyParser.make_tree(self, sentence),
-                   sentence['tokens'])
+        response = self.session.post(
+            self.url,
+            params={'properties': json.dumps(default_properties)},
+            data=text.encode(self.encoding),
+            timeout=60
+        )
+
+        response.raise_for_status()
+
+        parsed_data = xml.parse(response.text)
+        sentences = parsed_data['root']['document']['sentences']['sentence']
+        sentences = sentences if isinstance(sentences, list) else [sentences]
+
+        for sentence in sentences:
+            yield (ParentedTree.fromstring(sentence['parse']),
+                   self.make_deps(sentence['dependencies'][1]['dep']),
+                   sentence['tokens']['token'])

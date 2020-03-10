@@ -13,7 +13,7 @@ def find_children(sentence, types):
 
 
 def find_dependencies(dependencies, types):
-    deps = [dep for dep in dependencies if dep['dep'] in types]
+    deps = [dep for dep in dependencies if dep['dep'] in types or (dep['spec'] and dep['spec'] in types)]
     return deps
 
 
@@ -29,9 +29,10 @@ def find_dep_in_tree(fsentence, dep_index):
     return fsentence[tree_path[:-1]]
 
 
-def filter_by_gov(dependencies, gov_index):
+def filter_by_gov(dependencies, gov):
+    gov_list = [gov] if isinstance(gov, int) else [gov.f_word_index, gov.f_copIndex]
     deps = [dep for dep in dependencies
-            if gov_index == dep['governor']]
+            if dep['governor'] in gov_list]
     return deps
 
 

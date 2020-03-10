@@ -18,16 +18,13 @@ class ElementsBuilder(Base):
             if node.parent().label() == CD or WordNetWrapper.group_action(node.label()):
                 preps = Search.find_dependencies(dependencies, PREP)
                 for spec in preps:
-                    # TODO: spec['dep'].getSpecific
-                    if spec['dep'] in f_realActorPPIndicators:
-                        dep_in_tree = Search.find_dep_in_tree(full_sentence, spec['governor'])
-                        if dep_in_tree == node:
-                            dep_index = spec['dependent']
-                            dep_in_tree = Search.find_dep_in_tree(full_sentence, dep_index)
-                            full_noun = cls.get_full_noun(dep_in_tree, dep_index, dependencies)
-                            if WordNetWrapper.person_or_system(full_noun, spec['dependentGloss']):
-                                actor = cls.create_internal_actor(origin, full_sentence, dep_in_tree, dep_index, dependencies)
-                                break
+                    if spec['spec'] in f_realActorPPIndicators and spec['governor'] == node_index:
+                        dep_index = spec['dependent']
+                        dep_in_tree = Search.find_dep_in_tree(full_sentence, dep_index)
+                        full_noun = cls.get_full_noun(dep_in_tree, dep_index, dependencies)
+                        if WordNetWrapper.person_or_system(full_noun, spec['dependentGloss']):
+                            actor = cls.create_internal_actor(origin, full_sentence, dep_in_tree, dep_index, dependencies)
+                            break
             if not actor:
                 actor = cls.create_internal_actor(origin, full_sentence, node, node_index, dependencies)
                 actor.f_unreal = True
@@ -39,7 +36,7 @@ class ElementsBuilder(Base):
 
     @classmethod
     def create_internal_actor(cls, origin, full_sentence, node, node_index, dependencies):
-        actor = Actor(origin, node_index, node.label().lower())
+        actor = Actor(origin, node_index, node[0].lower())
         cls.determine_noun_specifiers(origin, full_sentence, node, node_index, dependencies, actor)
         full_noun = cls.get_full_noun(node, node_index, dependencies)
         if WordNetWrapper.is_meta_actor(full_noun, node.label()):
@@ -49,8 +46,8 @@ class ElementsBuilder(Base):
 
     @classmethod
     def create_action(cls, origin, full_sentence, node_index, dependencies, active):
-        node = Search.find_dep_in_tree(dependencies, node_index)
-        action = Action(origin, node_index, node.label())
+        node = Search.find_dep_in_tree(full_sentence, node_index)
+        action = Action(origin, node_index, node[0])
 
         aux = cls.get_auxiliars(node_index, dependencies)
         if len(aux) > 0:
@@ -113,7 +110,7 @@ class ElementsBuilder(Base):
         if WordNetWrapper.person_or_system(full_noun, node.label().lower()) or Processing.person_pronoun(node.label()):
             result = cls.create_internal_actor(origin, full_sentence, node, node_index, dependencies)
         else:
-            result = Resource(origin, node_index, node.label().lower())
+            result = Resource(origin, node_index, node[0].lower())
             cls.determine_noun_specifiers(origin, full_sentence, node, node_index, dependencies, result)
 
         result.f_subjectRole = False
@@ -123,10 +120,11 @@ class ElementsBuilder(Base):
     @classmethod
     def create_action_syntax(cls, origin, full_sentence, vphead):
         verb_parts = cls.extract_verb_parts(vphead)
-        if isinstance(vphead, str):
-            index = Search.find_sentence_index(full_sentence, vphead)
-        else:
-            index = Search.find_sentence_index(full_sentence, vphead.leaves()[0])
+        # TODO: check if necessary
+        # if isinstance(vphead, str):
+        #     index = Search.find_sentence_index(full_sentence, vphead)
+        # else:
+        index = Search.find_sentence_index(full_sentence, vphead)
 
         action = Action(origin, index, " ".join(verb_parts))
         cls.extract_SBAR_spec(origin, full_sentence, action, vphead)
@@ -150,13 +148,12 @@ class ElementsBuilder(Base):
                 else:
                     noun += dep['dependentGloss'] + " "
 
-        noun += node.label() + sufix
+        noun += node[0] + sufix
         return noun.lower()
 
     @classmethod
     def determine_noun_specifiers(cls, origin, full_sentence, node, node_index, dependencies, element):
 
-        # TODO
         cls.find_determiner(node_index, dependencies, element)
         cls.find_AMOD_specifiers(origin, node_index, dependencies, element)
         cls.find_NN_specifiers(origin, node_index, dependencies, element)
@@ -258,10 +255,10 @@ class ElementsBuilder(Base):
     @classmethod
     def extract_SBAR_spec(cls, origin, full_sentence, element, vp_head):
         sbar_list = Search.find_in_tree(vp_head, SBAR, [])
-        vp_index = Search.find_sentence_index(full_sentence, vp_head.leaves())
+        vp_index = Search.find_sentence_index(full_sentence, vp_head)
 
         for sbar in sbar_list:
-            sbar_index = Search.find_sentence_index(full_sentence, sbar.leaves())
+            sbar_index = Search.find_sentence_index(full_sentence, sbar)
 
             if sbar_index > vp_index:
                 spec = Specifier(origin, sbar_index, " ".join(sbar.leaves()))
@@ -280,14 +277,11 @@ class ElementsBuilder(Base):
                 phrase_tree = Search.get_full_phrase_tree(dep_in_tree, PP)
                 # TODO: check print
                 phrase = " ".join(phrase_tree.leaves())
-                specific = None
                 space_index = phrase.index(" ")
                 if space_index >= 0:
-                    # TODO: conj['dep'].getSpecific
-                    if dep['dep']:
+                    specific = dep['spec']
+                    if specific:
                         phrase = phrase[space_index:]
-                        # TODO: conj['dep'].getSpecific
-                        specific = dep['dep'].replace("_", " ")
                         phrase = specific + phrase
                     spec = Specifier(origin, dep['dependent'], phrase)
                     spec.f_type = PP
@@ -320,7 +314,7 @@ class ElementsBuilder(Base):
         pp_list = Search.find_in_tree(vphead, PP, (SBAR, S, NP, PRN))
 
         for pp in pp_list:
-            pp_index = Search.find_sentence_index(full_sentence, pp.leaves())
+            pp_index = Search.find_sentence_index(full_sentence, pp)
             # TODO: check print
             spec = Specifier(origin, pp_index, " ".join(pp.leaves()))
             spec.f_type = PP
@@ -357,7 +351,7 @@ class ElementsBuilder(Base):
 
         for dep in to_check:
             if dep['governor'] == node_index:
-                element.f_determiner = dep['governorGloss']
+                element.f_determiner = dep['dependentGloss']
                 break
 
     @classmethod
@@ -418,8 +412,7 @@ class ElementsBuilder(Base):
                 conjs = Search.find_dependencies(dependencies, CONJ)
                 for conj in conjs:
                     if conj['governor'] == dep['dependent']:
-                        # TODO: conj['dep'].getSpecific
-                        name += conj['dep'] + " " + dep['dependentGloss'] + " "
+                        name += conj['spec'] + " " + dep['dependentGloss'] + " "
                 if not index:
                     index = dep['dependent']
 

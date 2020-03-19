@@ -1,5 +1,6 @@
 from collections import Counter
 from functools import reduce
+from data.SentenceElements import Action
 
 
 def count_children(sentence, types):
@@ -36,16 +37,16 @@ def filter_by_gov(dependencies, gov):
     return deps
 
 
-def get_full_phrase_tree(tree_node, type):
+def get_full_phrase_tree(tree_node, label_type):
     node = tree_node
-    while node and node.label() != type and node.label()[0] != "W":
+    while node and node.label() != label_type and node.label()[0] != "W":
         node = node.parent()
 
     return node
 
 
-def get_full_phrase(tree_node, type):
-    tree = get_full_phrase_tree(tree_node, type)
+def get_full_phrase(tree_node, label_type):
+    tree = get_full_phrase_tree(tree_node, label_type)
     return " ".join(tree.leaves())
 
 
@@ -58,3 +59,38 @@ def find_in_tree(tree, types, exclude):
             result.extend(find_in_tree(child, types, exclude))
 
     return result
+
+
+def specifier_contains(specifiers, obj):
+    for spec in specifiers:
+        if spec.f_object:
+            if spec.f_object == obj or specifier_contains(spec.f_object.f_specifiers, obj):
+                return True
+
+    return False
+
+
+def get_action(actions, obj):
+    if isinstance(obj, Action):
+        return obj
+
+    for action in actions:
+        if specifier_contains(action.f_specifiers, obj):
+            return action
+        elif action.f_actorFrom:
+            cmp_obj = action.f_actorFrom
+            if obj == cmp_obj or specifier_contains(cmp_obj.f_specifiers, obj):
+                return action
+        elif action.f_object:
+            cmp_obj = action.f_object
+            if obj == cmp_obj or specifier_contains(cmp_obj.f_specifiers, obj):
+                return action
+        elif action.f_xcomp:
+            if specifier_contains(action.f_xcomp, obj):
+                return action
+            elif action.f_xcomp.f_object:
+                cmp_obj = action.f_xcomp.f_object
+                if obj == cmp_obj or specifier_contains(cmp_obj.f_specifiers, obj):
+                    return action
+
+    return None

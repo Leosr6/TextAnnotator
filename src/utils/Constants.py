@@ -84,12 +84,75 @@ f_conditionIndicators = []
 f_exampleIndicators = []
 
 """
+    Conjunctions
     TO-DO: write description
 """
 
+IF = "if"
 OF = "of"
 THAT = "that"
 OR = "or"
 AND = "and"
 ANDOR = "and/or"
 BUT = "but"
+TO = "to"
+NO = "no"
+FOR = "for"
+ABOUT = "about"
+MIXED = "mixed"
+
+"""
+    TO-DO: write description
+"""
+
+ANIMATE = "ANIMATE"
+INANIMATE = "INANIMATE"
+BOTH = "BOTH"
+
+"""
+    Flow type
+    TO-DO: write description
+"""
+
+JUMP = "JUMP"
+MULTIPLE_CHOICE = "MULTIPLE_CHOICE"
+CHOICE = "CHOICE"
+CONCURRENCY = "CONCURRENCY"
+
+"""
+    Conjunction status
+    TO-DO: write description
+"""
+
+NOT_CONTAINED = "NOT_CONTAINED"
+ACTION = "ACTION"
+ACTOR_SUBJECT = "ACTOR_SUBJECT"
+ACTOR_OBJECT = "ACTOR_OBJECT"
+RESOURCE = "RESOURCE"
+
+"""
+    Link types
+    TO-DO: write description
+"""
+
+FORWARD = "FORWARD"
+JUMP = "JUMP"
+LOOP = "LOOP"
+NONE = "NONE"
+
+"""
+    Flow direction
+    TODO: write description
+"""
+
+SPLIT = "SPLIT"
+JOIN = "JOIN"
+
+"""
+    TODO: write description
+"""
+
+SUBJECT_ROLE_SCORE = 10
+OBJECT_ROLE_SCORE = 10
+ROLE_MATCH_SCORE = 20
+SENTENCE_DISTANCE_PENALTY = 15

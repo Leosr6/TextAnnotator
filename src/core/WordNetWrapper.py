@@ -10,3 +10,15 @@ class WordNetWrapper:
     @staticmethod
     def is_meta_actor(full_noun, param):
         pass
+
+    @classmethod
+    def is_weak_action(cls, reference_action):
+        pass
+
+    @classmethod
+    def get_accepted_forward_links(cls):
+        pass
+
+    @classmethod
+    def is_AMOD_accepted_for_linking(cls, f_mod):
+        pass

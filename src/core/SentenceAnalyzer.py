@@ -11,7 +11,6 @@ from utils.Constants import *
 
 class SentenceAnalyzer(Base):
     f_world = None
-    f_sentence_number = time()
     f_sentenceTags = [S, SBAR, SINV]
     f_tokens = []
     f_dependencies = []
@@ -27,12 +26,10 @@ class SentenceAnalyzer(Base):
     def analyze_sentence(self, sentence):
 
         self.f_stanford_sentence = sentence
-        self.f_sentence_number += 1
         self.f_full_sentence = sentence.f_tree
         self.f_tokens = sentence.f_tokens
         self.f_dependencies = sentence.f_dependencies
-        self.f_analyzed_sentence = AnalyzedSentence(sentence, sentence.f_tree,
-                                                    self.f_sentence_number)
+        self.f_analyzed_sentence = AnalyzedSentence(sentence, sentence.f_tree)
 
         dependencies = sentence.f_dependencies
         main_sentence = sentence.f_tree[0]

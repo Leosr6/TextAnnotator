@@ -14,3 +14,12 @@ class WorldModel:
 
     def add_resource(self, resource):
         self.f_resources.append(resource)
+
+    def get_actions_of_sentence(self, stanford_sentence):
+        pass
+
+    def get_actors_of_sentence(self, stanford_sentence):
+        pass
+
+    def get_resources_of_sentence(self, stanford_sentence):
+        pass

@@ -1,6 +1,6 @@
 """
-    Wraps the CoreNLP classes to use the enhancedPlusPlusDependencies of the
-    dependency parser instead of the basicDependencies
+    Wraps the CoreNLP classes to use the enhancedDependencies of the
+    dependency parser without the extra dependencies
 """
 
 from nltk.parse.corenlp import GenericCoreNLPParser
@@ -17,7 +17,7 @@ class CoreNLPWrapper(GenericCoreNLPParser):
 
         for dep in dependencies:
             parsed_dep = dep['@type'].split(SPEC_SPLIT)
-            if parsed_dep[0] != PUNCT:
+            if parsed_dep[0] != PUNCT and '@extra' not in dep:
                 result.append({
                     'dep': parsed_dep[0], 'spec': parsed_dep[1] if len(parsed_dep) > 1 else None,
                     'dependent': int(dep['dependent']['@idx']), 'dependentGloss': dep['dependent']['#text'],
@@ -47,5 +47,5 @@ class CoreNLPWrapper(GenericCoreNLPParser):
 
         for sentence in sentences:
             yield (ParentedTree.fromstring(sentence['parse']),
-                   self.make_deps(sentence['dependencies'][1]['dep']),
+                   self.make_deps(sentence['dependencies'][3]['dep']),
                    sentence['tokens']['token'])

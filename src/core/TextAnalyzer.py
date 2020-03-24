@@ -1,4 +1,4 @@
-from copy import deepcopy
+from copy import *
 from core.CoreNLPWrapper import CoreNLPWrapper
 from core.Base import Base
 from data.WorldModel import WorldModel
@@ -84,7 +84,112 @@ class TextAnalyzer(Base):
                         self.logger.debug("Resolution result: {}".format(reference))
 
     def marker_detection(self):
-        pass
+        for analyzed_sentence in self.f_analyzed_sentences:
+            stanford_sentence = analyzed_sentence.f_sentence
+            deps = stanford_sentence.f_dependencies
+            markers = Search.find_dependencies(deps, MARK)
+            for dep in markers:
+                action = self.find_node_action(dep['governor'], analyzed_sentence.f_actions, deps)
+                if action:
+                    value = dep['dependentGloss'].lower()
+                    self.logger.debug("Marking {} with marker {}".format(action, value))
+                    action.f_marker = value
+
+            markers = Search.find_dependencies(deps, ADVMOD)
+            for dep in markers:
+                action = self.find_node_action(dep['governor'], analyzed_sentence.f_actions, deps)
+                if action and action.f_word_index > dep['dependent']:
+                    value = dep['dependentGloss'].lower()
+                    if value in f_parallelIndicators:
+                        action.f_marker = WHILE
+                    elif value != ALSO:
+                        self.logger.debug("Marking {} with advmod {}".format(action, value))
+                        action.f_preAdvMod = value
+                        action.f_preAdvModPos = dep['dependent']
+
+            markers = Search.find_dependencies(deps, PREPC)
+            for dep in markers:
+                action = self.find_node_action(dep['dependent'], analyzed_sentence.f_actions, deps)
+                if action:
+                    value = dep['spec'].lower()
+                    self.logger.debug("Marking {} with prepc {}".format(action, value))
+                    action.f_prepc = value
+
+            markers = Search.find_dependencies(deps, COMPLM)
+            for dep in markers:
+                if dep['dependentGloss'] != THAT:
+                    action = self.find_node_action(dep['governor'], analyzed_sentence.f_actions, deps)
+                    if action:
+                        value = dep['dependentGloss'].lower()
+                        if value in f_conditionIndicators:
+                            value = IFCOMPLM
+                        self.logger.debug("Marking {} with marker-complm {}".format(action, value))
+                        action.f_marker = value
+
+        for analyzed_sentence in self.f_analyzed_sentences:
+            stanford_sentence = analyzed_sentence.f_sentence
+            for action in self.f_world.get_actions_of_sentence(stanford_sentence):
+                specs = action.get_specifiers(PP)
+                if action.f_object:
+                    specs.extend(action.f_object.get_specifiers(PP))
+                specs.extend(action.get_specifiers(RCMOD))
+                specs.extend(action.get_specifiers(SBAR))
+
+                for spec in specs:
+                    if Search.starts_with(f_conditionIndicators, spec.f_name) and not action.f_marker:
+                        self.logger.debug("Marking {} with marker {} if".format(action, spec.f_name))
+                        action.f_marker = IF
+                        if spec.f_name not in f_conditionIndicators:
+                            action.f_markerFromPP = True
+
+                    for indic in f_sequenceIndicators:
+                        if spec.f_name.find(indic) == 0 and not action.f_preAdvMod:
+                            action.f_preAdvMod = indic
+                            action.f_preAdvModPos = spec.f_word_index
+
+                    if spec.f_name in f_parallelIndicators and not action.f_marker:
+                        self.logger.debug("Marking {} with marker {} while".format(action, spec.f_name))
+                        action.f_maker = WHILE
+
+        for analyzed_sentence in self.f_analyzed_sentences:
+            stanford_sentence = analyzed_sentence.f_sentence
+            linked = []
+            next_mark = None
+            actions = self.f_world.get_actions_of_sentence(stanford_sentence)
+            for action in actions:
+                if next_mark and not action.f_preAdvMod:
+                    action.f_preAdvMod = next_mark
+                    action.f_preAdvModPos = -1
+                    self.logger.debug("Marking {} with implicit advmod {}".format(action, next_mark))
+                if action in linked:
+                    next_mark = None
+                if (action.f_marker in f_conditionIndicators and not action.f_markerFromPP) or action.f_preAdvMod in f_conditionIndicators:
+                    next_mark = THEN
+                    self.determine_conjunct_elements(analyzed_sentence.f_conjs, action, linked, actions)
+
+        for analyzed_sentence in self.f_analyzed_sentences:
+            actions = analyzed_sentence.f_actions
+            for action in actions:
+                linked = []
+                self.determine_conjunct_elements(analyzed_sentence.f_conjs, action, linked, actions)
+                if len(linked) > 1:
+                    for linked_action in linked:
+                        if not linked_action.f_preAdvMod:
+                            linked_action.f_preAdvMod = action.f_preAdvMod
+                            linked_action.f_preAdvModPos = -1
+
+        for analyzed_sentence in self.f_analyzed_sentences:
+            actions = analyzed_sentence.f_actions
+            for index, action in enumerate(actions):
+                if action.f_marker == IFCOMPLM:
+                    action.f_marker = IF
+                elif action.f_marker == IF:
+                    if index > 0:
+                        previous_action = actions[index - 1]
+                        actions[index - 1] = action
+                        actions[index] = previous_action
+                        self.f_world.switch_actions(action, previous_action)
+                    break
 
     def combine_actions(self):
         for action in self.f_world.f_actions:
@@ -287,8 +392,43 @@ class TextAnalyzer(Base):
 
         return False
 
-    def merge(self, reference_action, action, param):
-        pass
+    def merge(self, reference_action, action, copy_only):
+        # Define main and merge actions
+        if WordNetWrapper.is_weak_action(reference_action):
+            merge_action = reference_action
+            main_action = action
+        else:
+            merge_action = action
+            main_action = reference_action
+
+        # Copy actor from
+        if merge_action.f_actorFrom:
+            if not main_action.f_actorFrom:
+                actor_from = None
+                if not merge_action.f_actorFrom.f_needsResolve:
+                    actor_from = merge_action.f_actorFrom
+                elif isinstance(merge_action.f_actorFrom.f_reference, Actor):
+                    actor_from = merge_action.f_actorFrom.f_reference
+
+                if actor_from:
+                    main_action.f_actorFrom = actor_from
+            elif main_action.f_actorFrom.f_needsResolve and not merge_action.f_actorFrom.f_needsResolve:
+                main_action.f_actorFrom = merge_action.f_actorFrom
+
+        # Copy object
+        if not main_action.f_object or main_action.f_object.f_needsResolve:
+            if merge_action.f_object and not merge_action.f_object.f_needsResolve:
+                main_action.f_object = merge_action.f_object
+
+        # Copy specs
+        for spec in merge_action.get_specifiers(PP):
+            main_action.f_specifiers.append(spec)
+
+        if not copy_only:
+            for analyzed_sentence in self.f_analyzed_sentences:
+                if merge_action in analyzed_sentence.f_actions:
+                    analyzed_sentence.f_actions.remove(merge_action)
+            self.f_world.f_actions.remove(merge_action)
 
     def is_linkable(self, source, target):
         if not target:
@@ -389,11 +529,107 @@ class TextAnalyzer(Base):
 
         return conj_type, status
 
-    def handle_single_action(self, stanford_sentence, flow, param, came_from, open_split):
-        pass
+    def handle_single_action(self, stanford_sentence, flow, action, came_from, open_split):
+        if not action.f_marker == IF and not action.f_preAdvMod and action.f_preAdvMod not in f_sequenceIndicators and len(open_split) > 0:
+            came_from.extend(open_split)
+            self.clear_split(open_split)
 
-    def build_gateway(self, came_from, open_split, stanford_sentence, processed, flow, conjoined, flow_type):
-        pass
+        if len(came_from) == 0:
+            self.create_dummy_node(came_from, flow)
+        elif len(came_from) >= 1:
+            if len(came_from) > 1:
+                dummy_flow = Flow(stanford_sentence)
+                dummy_action = DummyAction(action)
+                self.f_world.f_actions.append(dummy_action)
+                self.build_join(dummy_flow, came_from, dummy_action)
+                self.clear_split(open_split)
+                self.f_world.f_flows.append(dummy_flow)
+            if action.f_marker == WHILE:
+                if self.f_world.f_lastFlowAdded:
+                    self.f_world.f_lastFlowAdded.f_multiples.append(action)
+                    self.f_world.f_lastFlowAdded.f_type = CONCURRENCY
+                    came_from.append(action)
+                    return
+            elif action.f_marker in (WHEREAS, IF) or action.f_preAdvMod == OTHERWISE:
+                if action.f_prepc == EXCEPT:
+                    flow.f_type = EXCEPTION
+                    self.clear_split(open_split)
+                else:
+                    if self.f_last_split or action.f_marker == WHEREAS or action.f_preAdvMod == OTHERWISE:
+                        if not self.f_last_split:
+                            self.f_last_split = self.f_world.f_lastFlowAdded
+                        open_split.clear()
+                        open_split.extend(self.get_ends(self.f_last_split.f_multiples))
+                        self.f_last_split.f_multiples.append(action)
+                        came_from.clear()
+                        came_from.append(action)
+                        if action.f_marker == WHEREAS:
+                            came_from.extend(open_split)
+                            self.clear_split(open_split)
+                        return
+                    flow.f_type = CHOICE
+                    self.f_last_split = flow
+
+                flow.f_single = came_from[0]
+                flow.f_multiples = [action]
+                came_from.clear()
+                came_from.append(action)
+            else:
+                flow.f_type = SEQUENCE
+                flow.f_single = came_from[0]
+                flow.f_multiples = [action]
+                came_from.clear()
+                came_from.append(action)
+                if action.f_preAdvMod not in f_sequenceIndicators:
+                    self.clear_split(open_split)
+
+            self.f_world.f_flows.append(flow)
+
+    def clear_split(self, open_split):
+        open_split.clear()
+        self.f_last_split = None
+
+    def build_gateway(self, came_from, open_split, stanford_sentence, processed, flow, gateway_actions, flow_type):
+        first_action = gateway_actions[0]
+        if first_action.f_marker == IF or first_action.f_preAdvMod == OTHERWISE or first_action.f_preAdvMod in f_sequenceIndicators:
+            if first_action.f_preAdvMod not in f_sequenceIndicators:
+                open_split.clear()
+            if self.f_last_split:
+                dummy_action = DummyAction(first_action)
+                self.f_world.f_actions.append(dummy_action)
+                open_split.extend(self.get_ends(self.f_last_split.f_multiples))
+                self.f_last_split.f_multiples.append(dummy_action)
+                came_from.clear()
+                came_from.append(dummy_action)
+                flow.f_single = dummy_action
+            if first_action == OTHERWISE:
+                came_from.extend(open_split)
+                self.clear_split(open_split)
+        else:
+            came_from.extend(open_split)
+            self.clear_split(open_split)
+
+        if len(came_from) > 1:
+            flow = self.join_with_dummy_node(came_from, stanford_sentence, flow)
+
+        flow.f_multiples = gateway_actions
+        flow.f_type = flow_type
+        came_from.clear()
+
+        for action in gateway_actions:
+            if not self.has_incoming_link(action, JUMP):
+                came_from.append(action)
+            else:
+                self.logger.info("Left out action, due to JUMP link")
+
+        if len(came_from) == 0:
+            dummy_action = DummyAction(first_action)
+            self.f_world.f_actions.append(dummy_action)
+            flow.f_multiples.append(dummy_action)
+            came_from.append(dummy_action)
+
+        processed.extend(gateway_actions)
+        self.f_world.f_flows.append(flow)
 
     def create_dummy_node(self, came_from, flow):
         if len(came_from) == 0:
@@ -402,8 +638,24 @@ class TextAnalyzer(Base):
             came_from.append(dummy_action)
             flow.f_single = dummy_action
 
-    def build_join(self, flow, came_from, param):
-        pass
+    def build_join(self, flow, came_from, action):
+        flow.f_direction = JOIN
+        flow.f_single = action
+        flow.f_multiples = came_from
+        other_flow = self.find_split(came_from[0])
+        if other_flow:
+            flow.f_type = other_flow.f_type
+        came_from.clear()
+        came_from.append(action)
+
+    def find_split(self, action):
+        flow = self.find_flow(action, True)
+        if flow and flow.f_direction == SPLIT:
+            if flow.f_type != SEQUENCE:
+                return flow
+            else:
+                return self.find_split(flow.f_single)
+        return None
 
     def join_with_dummy_node(self, came_from, stanford_sentence, flow):
         dummy_action = DummyAction(came_from[0])
@@ -415,8 +667,65 @@ class TextAnalyzer(Base):
         new_flow.f_single = dummy_action
         return new_flow
 
-    def handle_mixed_situation(self, stanford_sentence, flow, conjs, actions, came_from):
-        pass
+    def handle_mixed_situation(self, stanford_sentence, flow, conjs, all_actions, came_from):
+        actors = set()
+        for conj in copy(conjs):
+            if conj.f_type == AND:
+                if isinstance(conj.f_from, Actor):
+                    actors.add(conj.f_from)
+                if isinstance(conj.f_to, Actor):
+                    actors.add(conj.f_to)
+                conjs.remove(conj)
+
+        exits = []
+        entries = []
+
+        for actor in actors:
+            actions = [action for action in all_actions if action.f_actorFrom == actor]
+            dummy_start = DummyAction(actions[0])
+            dummy_end = DummyAction(actions[0])
+            self.f_world.f_actions.append(dummy_start)
+            self.f_world.f_actions.append(dummy_end)
+            entries.append(dummy_start)
+            exits.append(dummy_end)
+            self.build_block(stanford_sentence, dummy_start, dummy_end, actions, conjs)
+
+        flow.f_multiples = entries
+        flow.f_type = CONCURRENCY
+        self.f_world.f_flows.append(flow)
+
+        dummy_action = DummyAction(all_actions[0])
+        self.f_world.f_actions.append(dummy_action)
+
+        join = Flow(stanford_sentence)
+        join.f_multiples = exits
+        join.f_type = CONCURRENCY
+        join.f_single = dummy_action
+        join.f_direction = JOIN
+        self.f_world.f_flows.append(join)
+
+        came_from.clear()
+        came_from.append(dummy_action)
+
+    def build_block(self, stanford_sentence, start, end, actions, conjs):
+        split = Flow(stanford_sentence)
+        join = Flow(stanford_sentence)
+
+        join.f_direction = JOIN
+        split.f_single = start
+        join.f_single = end
+
+        if conjs[0].f_tpe == ANDOR:
+            split.f_type = MULTIPLE_CHOICE
+            join.f_type = MULTIPLE_CHOICE
+        else:
+            split.f_type = CHOICE
+            join.f_type = CHOICE
+
+        split.f_multiples = actions
+        join.f_multiples = actions
+        self.f_world.f_flows.append(split)
+        self.f_world.f_flows.append(join)
 
     def get_end(self, action):
         for flow in self.f_world.f_flows:
@@ -552,8 +861,20 @@ class TextAnalyzer(Base):
 
         return False
 
-    def check_specifier_equal(self, source, target, spec_type, head_word_for_unknowns):
-        pass
+    @staticmethod
+    def check_specifier_equal(source, target, spec_type, head_word_for_unknowns):
+        for source_spec in source.get_specifiers(spec_type):
+            if source_spec.f_pt in (CORE, GENITIVE) or (source_spec.f_pt == UNKNOWN and source_spec.f_headWord in head_word_for_unknowns):
+                if not WordNetWrapper.is_AMOD_accepted_for_linking(source_spec.f_name):
+                    found_spec = False
+                    for target_spec in target.get_specifiers(spec_type):
+                        if source_spec.f_name == target_spec.f_name:
+                            found_spec = True
+                            break
+                    if not found_spec:
+                        return False
+
+        return True
 
     def has_incoming_link(self, target, link_type):
         for action in self.f_world.f_actions:
@@ -562,3 +883,15 @@ class TextAnalyzer(Base):
                     return True
 
         return False
+
+    def find_node_action(self, dep_index, action_list, deps):
+        for action in action_list:
+            if action.f_word_index == dep_index:
+                return action
+
+        cops = Search.find_dependencies(deps, COP)
+        for dep in cops:
+            if dep['governor'] == dep_index:
+                return self.find_node_action(dep['dependent'], action_list, deps)
+
+        return None

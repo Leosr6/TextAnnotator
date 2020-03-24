@@ -94,3 +94,10 @@ def get_action(actions, obj):
                     return action
 
     return None
+
+
+def starts_with(string_list, start):
+    for string in string_list:
+        if string.find(start) == 0:
+            return True
+    return False

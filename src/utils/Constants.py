@@ -54,6 +54,7 @@ NNAFTER = "nnafter"
 CCOMP = "ccomp"
 COMPLM = "mark"
 PUNCT = "punct"
+MARK = "mark"
 
 
 """
@@ -82,6 +83,7 @@ f_relativeResolutionTags = []
 f_relativeResolutionWords = []
 f_conditionIndicators = []
 f_exampleIndicators = []
+f_parallelIndicators = []
 
 """
     Conjunctions
@@ -100,6 +102,13 @@ NO = "no"
 FOR = "for"
 ABOUT = "about"
 MIXED = "mixed"
+WHILE = "while"
+WHEREAS = "whereas"
+OTHERWISE = "otherwise"
+EXCEPT = "except"
+IFCOMPLM = "if-complm"
+THEN = "then"
+ALSO = "also"
 
 """
     TO-DO: write description
@@ -118,6 +127,8 @@ JUMP = "JUMP"
 MULTIPLE_CHOICE = "MULTIPLE_CHOICE"
 CHOICE = "CHOICE"
 CONCURRENCY = "CONCURRENCY"
+EXCEPTION = "EXCEPTION"
+SEQUENCE = "SEQUENCE"
 
 """
     Conjunction status
@@ -139,6 +150,17 @@ FORWARD = "FORWARD"
 JUMP = "JUMP"
 LOOP = "LOOP"
 NONE = "NONE"
+
+"""
+    Phrase types
+    TO-DO: write description
+"""
+
+CORE = "CORE"
+PERIPHERAL = "PERIPHERAL"
+EXTRA_THEMATIC = "EXTRA_THEMATIC"
+GENITIVE = "GENITIVE"
+UNKNOWN = "UNKNOWN"
 
 """
     Flow direction

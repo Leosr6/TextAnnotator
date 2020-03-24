@@ -23,3 +23,6 @@ class WorldModel:
 
     def get_resources_of_sentence(self, stanford_sentence):
         pass
+
+    def switch_actions(self, action, previous_action):
+        pass

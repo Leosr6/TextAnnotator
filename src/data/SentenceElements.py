@@ -1,3 +1,15 @@
+class ConjunctionElement:
+
+    f_to = None
+    f_from = None
+    f_type = None
+
+    def __init__(self, el_from, el_to, conj):
+        self.f_from = el_from
+        self.f_to = el_to
+        self.f_type = conj
+
+
 class Element:
 
     f_word_index = -1
@@ -12,7 +24,6 @@ class Element:
         self.f_specifiers = []
 
     def get_specifiers(self, types):
-        # TO-DO: EQUAL COMP ONLY WORKS IF REFERENCE IS THE SAME
         return [spec for spec in self.f_specifiers if spec.f_type in types]
 
 

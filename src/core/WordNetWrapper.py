@@ -22,3 +22,7 @@ class WordNetWrapper:
     @classmethod
     def is_AMOD_accepted_for_linking(cls, f_mod):
         pass
+
+    @classmethod
+    def is_verb_of_type(cls, verb, verb_type):
+        pass

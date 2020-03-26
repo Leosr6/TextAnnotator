@@ -3,7 +3,6 @@ from core.Base import Base
 from core.ElementsBuilder import ElementsBuilder as Builder
 from data.AnalyzedSentence import AnalyzedSentence
 from data.SentenceElements import *
-from data.ConjunctionElement import ConjunctionElement
 from utils import Search
 from utils.Constants import *
 
@@ -19,7 +18,6 @@ class SentenceAnalyzer(Base):
     f_ignore_np_subsentences = False
 
     def __init__(self, world_model):
-
         self.f_world = world_model
 
     def analyze_sentence(self, sentence):

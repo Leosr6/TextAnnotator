@@ -1,4 +1,5 @@
 from data.SentenceElements import Action
+from utils.Constants import DUMMY_NODE
 
 
 class ConjunctionElement:
@@ -22,6 +23,6 @@ class DummyAction(Action):
 
     def __init__(self, action=None):
         if action:
-            super().__init__(action.f_sentence, action.f_word_index + 1, "Dummy node")
+            super().__init__(action.f_sentence, action.f_word_index + 1, DUMMY_NODE)
         else:
-            super().__init__(None, -1, "Dummy node")
+            super().__init__(None, -1, DUMMY_NODE)

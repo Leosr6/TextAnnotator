@@ -9,6 +9,7 @@
 """
 
 SPEC_SPLIT = ":"
+DUMMY_NODE = "Dummy"
 
 # A nominal subject is a noun phrase which is the syntactic subject of a clause
 NSUBJ = "nsubj"
@@ -193,3 +194,35 @@ f_inanimatePronouns = ["it", "they", "them", "which"]
 f_determiner = ["the", "this", "that", "these", "those"]
 f_actionResolutionDeterminer = ["this", "that"]
 f_relativeClausePronouns = ["who", "whose", "which", "that"]
+
+"""
+    TODO: write description
+    Event types
+"""
+
+START_EVENT = "StartEvent"
+INTERMEDIATE_EVENT = "IntermediateEvent"
+END_EVENT = "EndEvent"
+COMPENSATION_EVENT = "Compensation"
+CONDITIONAL_EVENT = "Conditional"
+ERROR_EVENT = "Error"
+ESCALATION_EVENT = "Escalation"
+MESSAGE_EVENT = "Message"
+MULTIPLE_EVENT = "Multiple"
+PARALLEL_MULTIPLE_EVENT = "ParallelMultiple"
+SIGNAL_EVENT = "Signal"
+TIMER_EVENT = "Timer"
+CANCEL_EVENT = "Cancel"
+TERMINATE_EVENT = "Terminate"
+LINK_EVENT = "Link"
+THROWING_EVENT = "Throwing"
+
+"""
+    TODO: write description
+    Gateway types
+"""
+
+PARALLEL_GATEWAY = "Parallel"
+INCLUSIVE_GATEWAY = "Inclusive"
+EXCLUSIVE_GATEWAY = "Exclusive"
+EVENT_BASED_GATEWAY = "EventBased"

@@ -58,7 +58,7 @@ MARK = "mark"
 
 
 """
-    TO-DO: write description
+    TODO: write description
 """
 
 ROOT = "ROOT"
@@ -74,22 +74,11 @@ CD = "CD"
 IOBJ = "IOBJ"
 
 """
-    TO-DO: write description
+    TODO: write description
+    Recurrent words
 """
 
-f_realActorPPIndicators = []
-f_sequenceIndicators = []
-f_relativeResolutionTags = []
-f_relativeResolutionWords = []
-f_conditionIndicators = []
-f_exampleIndicators = []
-f_parallelIndicators = []
-
-"""
-    Conjunctions
-    TO-DO: write description
-"""
-
+IT = "it"
 IF = "if"
 OF = "of"
 THAT = "that"
@@ -111,7 +100,7 @@ THEN = "then"
 ALSO = "also"
 
 """
-    TO-DO: write description
+    TODO: write description
 """
 
 ANIMATE = "ANIMATE"
@@ -120,7 +109,7 @@ BOTH = "BOTH"
 
 """
     Flow type
-    TO-DO: write description
+    TODO: write description
 """
 
 JUMP = "JUMP"
@@ -132,7 +121,7 @@ SEQUENCE = "SEQUENCE"
 
 """
     Conjunction status
-    TO-DO: write description
+    TODO: write description
 """
 
 NOT_CONTAINED = "NOT_CONTAINED"
@@ -143,7 +132,7 @@ RESOURCE = "RESOURCE"
 
 """
     Link types
-    TO-DO: write description
+    TODO: write description
 """
 
 FORWARD = "FORWARD"
@@ -153,7 +142,7 @@ NONE = "NONE"
 
 """
     Phrase types
-    TO-DO: write description
+    TODO: write description
 """
 
 CORE = "CORE"
@@ -178,3 +167,29 @@ SUBJECT_ROLE_SCORE = 10
 OBJECT_ROLE_SCORE = 10
 ROLE_MATCH_SCORE = 20
 SENTENCE_DISTANCE_PENALTY = 15
+
+"""
+    TODO: write description
+"""
+
+f_realActorPPIndicators = ["in", "of"]
+f_sequenceIndicators = ["then", "after", "afterward", "afterwards", "subsequently", "based on this", "thus"]
+f_relativeResolutionTags = ["DT", "PRP", "WP"]
+f_relativeResolutionWords = ["someone"]
+f_conditionIndicators = ["if", "whether", "in case of", "in the case of", "in case", "for the case", "whereas", "otherwise", "optionally"]
+f_exampleIndicators = ["for instance", "for example", "e.g."]
+f_parallelIndicators = ["while", "meanwhile", "in parallel", "concurrently", "meantime", "in the meantime"]
+f_frequencyWords = ["usually", "normally", "often", "frequently", "sometimes", "occasionally", "rarely", "seldom"]
+
+"""
+    TODO: write description
+    Processing
+"""
+
+f_beForms = ["be", "am", "are", "is", "was", "were", "been"]
+f_personPronouns = ["I", "you", "he", "she", "we", "you", "they", "me", "him", "her", "us", "them"]
+f_thirdPersonPronouns = ["he", "she", "it", "they", "him", "her", "them"]
+f_inanimatePronouns = ["it", "they", "them", "which"]
+f_determiner = ["the", "this", "that", "these", "those"]
+f_actionResolutionDeterminer = ["this", "that"]
+f_relativeClausePronouns = ["who", "whose", "which", "that"]

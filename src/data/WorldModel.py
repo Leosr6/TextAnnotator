@@ -6,23 +6,15 @@ class WorldModel:
     f_flows = []
     f_lastFlowAdded = None
 
-    def add_action(self, action):
-        self.f_actions.append(action)
-
-    def add_actor(self, actor):
-        self.f_actors.append(actor)
-
-    def add_resource(self, resource):
-        self.f_resources.append(resource)
-
     def get_actions_of_sentence(self, stanford_sentence):
-        pass
+        return [action for action in self.f_actions if action.f_sentence == stanford_sentence]
 
     def get_actors_of_sentence(self, stanford_sentence):
-        pass
+        return [actor for actor in self.f_actors if actor.f_sentence == stanford_sentence]
 
     def get_resources_of_sentence(self, stanford_sentence):
-        pass
+        return [resource for resource in self.f_resources if resource.f_sentence == stanford_sentence]
 
     def switch_actions(self, action, previous_action):
-        pass
+        index1, index2 = self.f_actions.index(action), self.f_actions.index(previous_action)
+        self.f_actions[index1] = previous_action, self.f_actions[index2] = action

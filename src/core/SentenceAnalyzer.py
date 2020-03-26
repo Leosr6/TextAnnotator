@@ -1,5 +1,4 @@
-from time import time
-from copy import deepcopy
+from copy import *
 from core.Base import Base
 from core.ElementsBuilder import ElementsBuilder as Builder
 from data.AnalyzedSentence import AnalyzedSentence
@@ -41,7 +40,7 @@ class SentenceAnalyzer(Base):
         actions.sort(key=lambda a: a.f_word_index)
 
         for action in actions:
-            self.f_world.add_action(action)
+            self.f_world.f_actions.append(action)
 
         self.logger.debug("Extracted actions {}".format(actions))
 
@@ -105,7 +104,7 @@ class SentenceAnalyzer(Base):
             if len(objects) > 0:
                 # One verb can generate multiple actions
                 for el in objects:
-                    new_action = deepcopy(verb)
+                    new_action = copy(verb)
                     new_action.f_object = el
                     actions.append(new_action)
             else:
@@ -117,7 +116,7 @@ class SentenceAnalyzer(Base):
         if len(actors) > 0:
             for actor in actors:
                 for action in actions:
-                    new_action = deepcopy(action)
+                    new_action = copy(action)
                     new_action.f_actor = actor
                     final_actions.append(new_action)
         else:
@@ -126,13 +125,13 @@ class SentenceAnalyzer(Base):
         # Add everything to the world model
 
         for actor in actors:
-            self.f_world.add_actor(actor)
+            self.f_world.f_actors.append(actor)
 
         for el in all_objects:
             if isinstance(el, Actor):
-                self.f_world.add_actor(el)
+                self.f_world.f_actors.append(el)
             else:
-                self.f_world.add_resource(el)
+                self.f_world.f_resources.append(el)
 
         for action in final_actions:
             self.f_analyzed_sentence.f_actions.append(action)
@@ -140,12 +139,12 @@ class SentenceAnalyzer(Base):
                 actor_from = action.f_xcomp.f_actorFrom
                 obj = action.f_xcomp.f_object
                 if actor_from:
-                    self.f_world.add_actor(actor_from)
+                    self.f_world.f_actors.append(actor_from)
                 if obj:
                     if isinstance(obj, Actor):
-                        self.f_world.add_actor(obj)
+                        self.f_world.f_actors.append(obj)
                     else:
-                        self.f_world.add_resource(obj)
+                        self.f_world.f_resources.append(obj)
 
     def filter_verb(self, verb, actors, objects):
         to_check = []
@@ -286,7 +285,7 @@ class SentenceAnalyzer(Base):
             main_predicate = Search.find_dep_in_tree(self.f_full_sentence,
                                                      main_predicate_index)
             vp_head = Search.get_full_phrase_tree(main_predicate, VP)
-            action = Builder.create_action(self.f_full_sentence, self.f_full_sentence,
+            action = Builder.create_action(self.f_stanford_sentence, self.f_full_sentence,
                                            main_predicate_index, dependencies, active)
             self.check_sub_sentences(vp_head, dependencies, action, False)
             actions.append(action)
@@ -459,7 +458,7 @@ class SentenceAnalyzer(Base):
                             self.check_np_sub_sentences(dep_index, dependencies, new_ele)
                     else:
                         if x_comp_hit:
-                            new_ele = deepcopy(action)
+                            new_ele = copy(action)
                             new_ele.f_xcomp = Builder.create_action(
                                 self.f_stanford_sentence, self.f_full_sentence,
                                 dep_index, dependencies, True)

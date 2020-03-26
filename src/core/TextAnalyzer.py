@@ -41,6 +41,8 @@ class TextAnalyzer(Base):
         self.determine_links()
         self.build_flows()
 
+        return self.f_world
+
     def create_stanford_sentences(self, text):
 
         # List of standford_sentences
@@ -319,7 +321,7 @@ class TextAnalyzer(Base):
     def to_element(self, sentence_word_id):
         sentence_id, word_id = sentence_word_id
         sentence = self.f_raw_sentences[sentence_id]
-        to_check = deepcopy(self.f_world.f_actions)
+        to_check = copy(self.f_world.f_actions)
 
         for action in to_check:
             xcomp = action.f_xcomp
@@ -339,7 +341,7 @@ class TextAnalyzer(Base):
     def determine_animate_type(obj):
         if isinstance(obj, Resource) or obj.f_unreal:
             return INANIMATE
-        elif Processing.object_pronoun(obj.f_name):
+        elif Processing.can_be_object_pronoun(obj.f_name):
             return BOTH
         else:
             return ANIMATE
@@ -516,7 +518,7 @@ class TextAnalyzer(Base):
                 if status == NOT_CONTAINED:
                     status = self.is_part_of(conj.f_to, conjoined)
                 if status != NOT_CONTAINED:
-                    link = Search.get_action(conj.f_to, actions)
+                    link = Search.get_action(actions, conj.f_to)
                     if link:
                         conjoined.append(link)
                         if not conj_type:

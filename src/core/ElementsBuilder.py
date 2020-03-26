@@ -107,7 +107,7 @@ class ElementsBuilder(Base):
         node = Search.find_dep_in_tree(full_sentence, node_index)
         full_noun = cls.get_full_noun(node, node_index, dependencies)
 
-        if WordNetWrapper.person_or_system(full_noun, node.label().lower()) or Processing.person_pronoun(node.label()):
+        if WordNetWrapper.person_or_system(full_noun, node.label().lower()) or Processing.can_be_person_pronoun(node.label()):
             result = cls.create_internal_actor(origin, full_sentence, node, node_index, dependencies)
         else:
             result = Resource(origin, node_index, node[0].lower())

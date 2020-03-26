@@ -13,7 +13,7 @@ class Element:
 
     def get_specifiers(self, types):
         # TO-DO: EQUAL COMP ONLY WORKS IF REFERENCE IS THE SAME
-        return [spec for spec in self.f_specifiers if spec in types]
+        return [spec for spec in self.f_specifiers if spec.f_type in types]
 
 
 class ExtractedObject(Element):

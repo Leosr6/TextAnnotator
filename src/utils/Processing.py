@@ -1,4 +1,6 @@
 from utils.Constants import *
+from data.SentenceElements import Actor
+from core.WordNetWrapper import WordNetWrapper
 
 
 def can_be_person_pronoun(name):
@@ -20,3 +22,17 @@ def is_RC_pronoun(name):
 
 def can_be_object_pronoun(name):
     return name.lower() in f_inanimatePronouns
+
+
+def is_unreal_actor(obj):
+    return isinstance(obj, Actor) and obj.f_unreal
+
+
+def get_third_person(name):
+    base = WordNetWrapper.get_base_form(name)
+    if base in f_weakVerbToThirdPerson:
+        return f_weakVerbToThirdPerson[base]
+    elif base.endswith("s") or base.endswith("x"):
+        return base + "es"
+    else:
+        return base + "s"

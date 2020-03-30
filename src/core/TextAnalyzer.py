@@ -145,7 +145,7 @@ class TextAnalyzer(Base):
                             action.f_markerFromPP = True
 
                     for indic in f_sequenceIndicators:
-                        if spec.f_name.find(indic) == 0 and not action.f_preAdvMod:
+                        if spec.f_name.startswith(indic) and not action.f_preAdvMod:
                             action.f_preAdvMod = indic
                             action.f_preAdvModPos = spec.f_word_index
 
@@ -485,7 +485,7 @@ class TextAnalyzer(Base):
     def determine_link_type(self, source, target):
         if source.f_marker == IF:
             for spec in source.f_specifiers:
-                for link in WordNetWrapper.get_accepted_forward_links():
+                for link in WordNetWrapper.accepted_forward_links:
                     if spec.f_name.find(link):
                         return FORWARD
 
@@ -495,14 +495,14 @@ class TextAnalyzer(Base):
             if conj_type == OR or target.f_marker == IF or target.f_preAdvMod in f_sequenceIndicators:
                 return JUMP
         else:
-            if WordNetWrapper.is_AMOD_accepted_for_linking(source.f_mod):
+            if source.f_mod in WordNetWrapper.accepted_AMOD_list:
                 return LOOP
 
             to_check = source.get_specifiers(AMOD)
             if source.f_object:
                 to_check.extend(source.f_object.get_specifiers(AMOD))
             for spec in to_check:
-                if WordNetWrapper.is_AMOD_accepted_for_linking(spec.f_name):
+                if spec.f_name in WordNetWrapper.accepted_AMOD_list:
                     return LOOP
 
         return NONE
@@ -847,11 +847,10 @@ class TextAnalyzer(Base):
         return result
 
     def ex_ob_equals(self, source, target):
-        if (source.f_name[-1] == "s") == (target.f_name[-1] == "s"):
-            # TODO: check if necessary
-            # String _name1 = WordNetWrapper.getBaseForm(_from1.getName(), false, POS.NOUN);
-            # String _name2 = WordNetWrapper.getBaseForm(_from2.getName(), false, POS.NOUN);
-            if source.f_name == target.f_name:
+        if source.f_name.endswith("s") == target.f_name.endswith("s"):
+            source_base = WordNetWrapper.get_base_form(source.f_name, False, POS_NOUN)
+            target_base = WordNetWrapper.get_base_form(target.f_name, False, POS_NOUN)
+            if source_base == target_base:
                 if (source.f_determiner == NO) != (target.f_determiner == NO):
                     return False
             specifiers = [(AMOD, ""), (PP, FOR), (NN, ""), (NNAFTER, ""), (PP, ABOUT)]
@@ -867,7 +866,7 @@ class TextAnalyzer(Base):
     def check_specifier_equal(source, target, spec_type, head_word_for_unknowns):
         for source_spec in source.get_specifiers(spec_type):
             if source_spec.f_pt in (CORE, GENITIVE) or (source_spec.f_pt == UNKNOWN and source_spec.f_headWord in head_word_for_unknowns):
-                if not WordNetWrapper.is_AMOD_accepted_for_linking(source_spec.f_name):
+                if source_spec.f_name not in WordNetWrapper.accepted_AMOD_list:
                     found_spec = False
                     for target_spec in target.get_specifiers(spec_type):
                         if source_spec.f_name == target_spec.f_name:

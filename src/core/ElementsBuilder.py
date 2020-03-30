@@ -15,7 +15,7 @@ class ElementsBuilder(Base):
         full_noun = cls.get_full_noun(node, node_index, dependencies)
         # TODO: implement WordNetWrapper
         if not WordNetWrapper.person_or_system(full_noun, node.label().lower()):
-            if node.parent().label() == CD or WordNetWrapper.group_action(node.label()):
+            if node.parent().label() == CD or WordNetWrapper.can_be_group_action(node.label()):
                 preps = Search.find_dependencies(dependencies, PREP)
                 for spec in preps:
                     if spec['spec'] in f_realActorPPIndicators and spec['governor'] == node_index:

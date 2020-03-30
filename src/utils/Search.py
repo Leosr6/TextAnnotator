@@ -98,6 +98,6 @@ def get_action(actions, obj):
 
 def starts_with(string_list, start):
     for string in string_list:
-        if string.find(start) == 0:
+        if string.startswith(start):
             return True
     return False

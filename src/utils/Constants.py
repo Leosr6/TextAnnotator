@@ -8,9 +8,6 @@
     https://nlp.stanford.edu/pubs/USD_LREC14_paper_camera_ready.pdf
 """
 
-SPEC_SPLIT = ":"
-DUMMY_NODE = "Dummy"
-
 # A nominal subject is a noun phrase which is the syntactic subject of a clause
 NSUBJ = "nsubj"
 # A clausal subject is a clausal syntactic subject of a clause, i.e., the subject is itself a clause
@@ -79,9 +76,16 @@ IOBJ = "IOBJ"
     Recurrent words
 """
 
+IN = "in"
 IT = "it"
 IF = "if"
 OF = "of"
+DO = "do"
+BE = "be"
+INTO = "into"
+UNDER = "under"
+ABOUT = "about"
+TERMINATE = "terminate"
 THAT = "that"
 OR = "or"
 AND = "and"
@@ -90,7 +94,6 @@ BUT = "but"
 TO = "to"
 NO = "no"
 FOR = "for"
-ABOUT = "about"
 MIXED = "mixed"
 WHILE = "while"
 WHEREAS = "whereas"
@@ -181,6 +184,7 @@ f_conditionIndicators = ["if", "whether", "in case of", "in the case of", "in ca
 f_exampleIndicators = ["for instance", "for example", "e.g."]
 f_parallelIndicators = ["while", "meanwhile", "in parallel", "concurrently", "meantime", "in the meantime"]
 f_frequencyWords = ["usually", "normally", "often", "frequently", "sometimes", "occasionally", "rarely", "seldom"]
+f_wantedDeterminers = ["a", "an", "no", "the"]
 
 """
     TODO: write description
@@ -194,6 +198,22 @@ f_inanimatePronouns = ["it", "they", "them", "which"]
 f_determiner = ["the", "this", "that", "these", "those"]
 f_actionResolutionDeterminer = ["this", "that"]
 f_relativeClausePronouns = ["who", "whose", "which", "that"]
+f_weakVerbToThirdPerson = {"be": "is", "have": "has", "do": "does"}
+
+"""
+    TODO: write description
+    WordNet Wrapper
+"""
+
+f_acceptedForForwardLink = ["finally"]
+f_personCorrectorList = ["resource provisioning", "customer service", "support", "support office", "support officer", "client service back office",
+                         "master", "masters", "assembler ag", "acme ag", "acme financial accounting", "secretarial office", "office", "registry",
+                         "head", "storehouse", "atm", "crs", "company", "garage", "kitchen", "department", "ec", "sp", "mpo", "mpoo", "mpon", "msp"
+                         "mspo", "mspn", "go", "pu", "ip", "inq", "sp\\/pu\\/go", "fault detector"]
+f_realActorDeterminers = ["person", "social group", "software system"]
+f_metaActorsDeterminers = ["step", "process", "case", "state"]
+f_weakVerbs = ["be", "have", "do", "achieve", "start", "exist", "base"]
+f_acceptedAMODforLoops = ["next", "back", "again"]
 
 """
     TODO: write description
@@ -226,3 +246,39 @@ PARALLEL_GATEWAY = "Parallel"
 INCLUSIVE_GATEWAY = "Inclusive"
 EXCLUSIVE_GATEWAY = "Exclusive"
 EVENT_BASED_GATEWAY = "EventBased"
+
+"""
+    TODO: write description
+    Process Model Builder
+"""
+
+MAX_NAME_DEPTH = 3
+ADD_UNKNOWN_PHRASETYPES = True
+
+"""
+    TODO: write description
+"""
+
+SPEC_SPLIT = ":"
+DUMMY_NODE = "Dummy"
+
+"""
+    TODO: write description
+    Verb Types
+"""
+
+END_VERB = "end"
+START_VERB = "start"
+SEND_VERB = "send"
+RECEIVE_VERB = "receive"
+
+"""
+    TODO: write description
+"""
+
+TIME_PERIOD = "time_period"
+GROUP_ACTION = "group_action"
+POS_VERB = "v"
+POS_NOUN = "n"
+POS_ADJECTIVE = "a"
+POS_ADVERB = "r"

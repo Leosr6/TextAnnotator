@@ -3,7 +3,6 @@ import json
 from flask import Flask, request, make_response
 from core.TextAnalyzer import TextAnalyzer
 from core.ProcessModelBuilder import ProcessModelBuilder
-import sys
 
 
 app = Flask(__name__)
@@ -36,7 +35,6 @@ def TextReaderService():
     elif request.content_type == "text/plain":
         text = request.get_data(as_text=True)
 
-    print(text, file=sys.stderr)
     if text:
         try:
             bpmn = text_to_bpmn(text)

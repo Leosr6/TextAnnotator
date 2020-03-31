@@ -19,11 +19,11 @@ class ProcessModelBuilder(Base):
     f_not_assigned = []
     f_last_pool = None
 
-    def __init__(self, world_model):
-        self.f_world = world_model
+    def __init__(self):
         self.f_model = ProcessModel()
 
-    def create_process_model(self):
+    def create_process_model(self, world_model):
+        self.f_world = world_model
         self.f_main_pool = Pool()
         self.f_model.f_nodes.append(self.f_main_pool)
 

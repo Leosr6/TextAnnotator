@@ -13,9 +13,8 @@ class ElementsBuilder(Base):
         actor = None
         node = Search.find_dep_in_tree(full_sentence, node_index)
         full_noun = cls.get_full_noun(node, node_index, dependencies)
-        # TODO: implement WordNetWrapper
-        if not WordNetWrapper.person_or_system(full_noun, node.label().lower()):
-            if node.parent().label() == CD or WordNetWrapper.can_be_group_action(node.label()):
+        if not WordNetWrapper.person_or_system(full_noun, node[0].lower()):
+            if node.parent().label() == CD or WordNetWrapper.can_be_group_action(node[0].lower()):
                 preps = Search.find_dependencies(dependencies, PREP)
                 for spec in preps:
                     if spec['spec'] in f_realActorPPIndicators and spec['governor'] == node_index:
@@ -39,7 +38,7 @@ class ElementsBuilder(Base):
         actor = Actor(origin, node_index, node[0].lower())
         cls.determine_noun_specifiers(origin, full_sentence, node, node_index, dependencies, actor)
         full_noun = cls.get_full_noun(node, node_index, dependencies)
-        if WordNetWrapper.is_meta_actor(full_noun, node.label()):
+        if WordNetWrapper.is_meta_actor(full_noun, node[0].lower()):
             actor.f_metaActor = True
 
         return actor
@@ -107,7 +106,7 @@ class ElementsBuilder(Base):
         node = Search.find_dep_in_tree(full_sentence, node_index)
         full_noun = cls.get_full_noun(node, node_index, dependencies)
 
-        if WordNetWrapper.person_or_system(full_noun, node.label().lower()) or Processing.can_be_person_pronoun(node.label()):
+        if WordNetWrapper.person_or_system(full_noun, node[0].lower()) or Processing.can_be_person_pronoun(node[0].lower()):
             result = cls.create_internal_actor(origin, full_sentence, node, node_index, dependencies)
         else:
             result = Resource(origin, node_index, node[0].lower())

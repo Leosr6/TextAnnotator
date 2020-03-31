@@ -98,7 +98,7 @@ class WordNetWrapper(Base):
                 for word in words[:-1]:
                     base_form += word + " "
 
-            base_form += words[-1].lemma_names[0]
+            base_form += synsets[0].lemma_names()[0]
             return base_form
         else:
             self.logger.error("Could not find base form of {}".format(name))

@@ -46,7 +46,7 @@ def TextReaderService():
     if text:
         try:
             metadata = generate_metadata(text)
-            return make_response((json.dumps(metadata), 200))
+            return make_response((json.dumps(metadata), 200, {"Content-Type": "application/json"}))
         except Exception as e:
             return make_response((str(e), 500))
     else:

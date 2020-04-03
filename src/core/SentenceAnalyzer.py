@@ -114,7 +114,7 @@ class SentenceAnalyzer(Base):
             for actor in actors:
                 for action in actions:
                     new_action = copy(action)
-                    new_action.f_actor = actor
+                    new_action.f_actorFrom = actor
                     final_actions.append(new_action)
         else:
             final_actions = actions

@@ -9,7 +9,7 @@ def count_children(sentence, types):
 
 
 def find_children(sentence, types):
-    children = [child for child in list(sentence) if child.label() in types]
+    children = [child for child in list(sentence) if not isinstance(child, str) and child.label() in types]
     return children
 
 
@@ -19,10 +19,17 @@ def find_dependencies(dependencies, types):
 
 
 def find_sentence_index(fsentence, sentence):
-    array = fsentence.leaves()
-    part = sentence.leaves()
+    return find_array_part(fsentence.leaves(), sentence.leaves())
+
+
+def find_array_part(array, part):
     indices = [i for i in range(len(array)) if array[i:i+len(part)] == part]
-    return indices[0]
+    if len(indices) > 0:
+        return indices[0] + 1
+    elif len(part) > 1:
+        return find_array_part(array, part[1:])
+    else:
+        return -1
 
 
 def find_dep_in_tree(fsentence, dep_index):

@@ -12,16 +12,15 @@ from utils.Constants import *
 
 
 class TextAnalyzer(Base):
-    f_world = None
-    f_text = ""
-    f_parser = None
-    f_analyzed_sentences = []
-    f_raw_sentences = []
-    f_reference_map = {}
-    f_last_split = None
 
     def __init__(self):
         self.f_parser = CoreNLPWrapper()
+        self.f_world = None
+        self.f_text = ""
+        self.f_analyzed_sentences = []
+        self.f_raw_sentences = []
+        self.f_reference_map = {}
+        self.f_last_split = None
 
     def analyze_text(self, text):
 
@@ -247,9 +246,9 @@ class TextAnalyzer(Base):
                     conj_type, conj_status = self.determine_conjunct_elements(conjs, action, conjoined, actions)
                     if len(conjoined) == 1:
                         self.handle_single_action(stanford_sentence, flow, conjoined[0], came_from, open_split)
-                    elif len(conjoined) == 0:
-                        flow.f_single = came_from[0]
                     else:
+                        if len(came_from) > 0:
+                            flow.f_single = came_from[0]
                         if conj_type in (OR, ANDOR) or Processing.has_frequency_attached(conjoined[0]):
                             self.create_dummy_node(came_from, flow)
                             flow_type = MULTIPLE_CHOICE if conj_type == ANDOR else CHOICE

@@ -1,8 +1,7 @@
-class ConjunctionElement:
+from utils.Constants import UNKNOWN, DIRECT
 
-    f_to = None
-    f_from = None
-    f_type = None
+
+class ConjunctionElement:
 
     def __init__(self, el_from, el_to, conj):
         self.f_from = el_from
@@ -12,15 +11,10 @@ class ConjunctionElement:
 
 class Element:
 
-    f_word_index = -1
-    f_name = ""
-    f_sentence = None
-    f_specifiers = []
-
     def __init__(self, sentence, index, word):
         self.f_sentence = sentence
         self.f_word_index = index
-        self.f_name = word
+        self.f_name = word or ""
         self.f_specifiers = []
 
     def get_specifiers(self, types):
@@ -29,65 +23,57 @@ class Element:
 
 class ExtractedObject(Element):
 
-    f_subjectRole = True
-    f_determiner = None
-    f_reference = None
-    f_needsResolve = False
+    def __init__(self, sentence, index, word):
+        super().__init__(sentence, index, word)
+        self.f_subjectRole = True
+        self.f_determiner = None
+        self.f_reference = None
+        self.f_needsResolve = False
 
 
 class Specifier(Element):
 
-    f_type = None#SpecifierType.DIRECT
-    f_headWord = None
-    f_object = None
-    f_pt = None#PhraseType.UNKNOWN
-    f_fe = None
-
-    # def __init__(self, sentence, index, phrase):
-    #     super().__init__(sentence, index, phrase)
+    def __init__(self, sentence, index, word):
+        super().__init__(sentence, index, word)
+        self.f_type = DIRECT
+        self.f_headWord = ""
+        self.f_object = None
+        self.f_pt = UNKNOWN
+        self.f_fe = None
 
 
 class Action(Element):
 
-    f_baseForm = None
-
-    f_actorFrom = None
-    f_object = None
-
-    f_xcomp = None
-
-
-    f_prt = None
-    f_cop = None
-    f_copIndex = None
-    f_aux = None
-
-    f_mod = None
-    f_modPos = -1
-
-    f_marker = None
-    f_markerFromPP = False
-    f_preAdvMod = None
-    f_preAdvModPos = -1
-    f_prepc = None
-    f_negated = False
-
-    f_link = None
-    f_linkType = None
-    f_transient = False
-
-    # def __init__(self, sentence, index, verb):
-    #     super().__init__(sentence, index, verb)
+    def __init__(self, sentence, index, word):
+        super().__init__(sentence, index, word)
+        self.f_baseForm = None
+        self.f_actorFrom = None
+        self.f_object = None
+        self.f_xcomp = None
+        self.f_prt = None
+        self.f_cop = None
+        self.f_copIndex = None
+        self.f_aux = None
+        self.f_mod = None
+        self.f_modPos = -1
+        self.f_marker = None
+        self.f_markerFromPP = False
+        self.f_preAdvMod = None
+        self.f_preAdvModPos = -1
+        self.f_prepc = None
+        self.f_negated = False
+        self.f_link = None
+        self.f_linkType = None
+        self.f_transient = False
 
 
 class Actor(ExtractedObject):
 
-    f_unreal = False
-    f_metaActor = False
-    f_passive = False
-
-    # def __init__(self, sentence, index, subj):
-    #     super().__init__(sentence, index, subj)
+    def __init__(self, sentence, index, word):
+        super().__init__(sentence, index, word)
+        self.f_unreal = False
+        self.f_metaActor = False
+        self.f_passive = False
 
 
 class Resource(ExtractedObject):

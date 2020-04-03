@@ -7,11 +7,12 @@ from utils.Constants import *
 
 class WordNetWrapper(Base):
 
-    accepted_forward_links = []
-    accepted_AMOD_list = []
-
     def __init__(self):
-        nltk.download('wordnet')
+        self.accepted_forward_links = []
+        self.accepted_AMOD_list = []
+
+        if not nltk.wordnet:
+            nltk.download('wordnet')
 
         for word in f_acceptedAMODforLoops:
             synsets = wn.synsets(word, POS_ADJECTIVE)

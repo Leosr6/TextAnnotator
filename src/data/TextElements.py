@@ -1,21 +1,14 @@
 from data.SentenceElements import Action
-from utils.Constants import DUMMY_NODE
-
-
-class ConjunctionElement:
-    f_to = None
-    f_from = None
-    f_type = ""
+from utils.Constants import DUMMY_NODE, SPLIT
 
 
 class Flow:
-    f_multiples = []
-    f_single = None
-    f_type = ""
-    f_direction = ""
-    f_sentence = None
 
     def __init__(self, sentence):
+        self.f_multiples = []
+        self.f_single = None
+        self.f_type = ""
+        self.f_direction = SPLIT
         self.f_sentence = sentence
 
 

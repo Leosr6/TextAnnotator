@@ -323,7 +323,7 @@ class ElementsBuilder(Base):
     def extract_verb_parts(cls, node):
         parts = []
         if isinstance(node[0], str):
-            parts.append(node)
+            parts.append(node[0])
         else:
             for child in node:
                 if child.label() not in (SBAR, NP, ADJP, ADVP, PRN) and node.label() != PP:
@@ -394,8 +394,9 @@ class ElementsBuilder(Base):
         for dep in to_check:
             if dep['governor'] == node_index:
                 dep_in_tree = Search.find_dep_in_tree(full_sentence, dep['dependent'])
-                phrase = Search.get_full_phrase_tree(dep_in_tree, VP)
-                spec = Specifier(origin, dep['dependent'], phrase)
+                phrase_tree = Search.get_full_phrase_tree(dep_in_tree, VP)
+                phrase = phrase_tree.leaves() if phrase_tree else []
+                spec = Specifier(origin, dep['dependent'], " ".join(phrase))
                 spec.f_type = PARTMOD
                 element.f_specifiers.append(spec)
 

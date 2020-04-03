@@ -8,17 +8,16 @@ from utils.Constants import *
 
 
 class SentenceAnalyzer(Base):
-    f_world = None
-    f_sentenceTags = [S, SBAR, SINV]
-    f_tokens = []
-    f_dependencies = []
-    f_analyzed_sentence = None
-    f_full_sentence = None
-    f_stanford_sentence = None
-    f_ignore_np_subsentences = False
 
     def __init__(self, world_model):
         self.f_world = world_model
+        self.f_sentenceTags = [S, SBAR, SINV]
+        self.f_tokens = []
+        self.f_dependencies = []
+        self.f_analyzed_sentence = None
+        self.f_full_sentence = None
+        self.f_stanford_sentence = None
+        self.f_ignore_np_subsentences = False
 
     def analyze_sentence(self, sentence):
 
@@ -57,7 +56,7 @@ class SentenceAnalyzer(Base):
             self.analyze_recursive(sub_sentence, filtered_dependencies)
 
             main_sentence_copy = deepcopy(main_sentence)
-            sub_sentence_index = sub_sentence.treeposition()[1:]
+            sub_sentence_index = sub_sentence.treeposition()[-1]
             del(main_sentence_copy[sub_sentence_index])
             deps = [dep for dep in dependencies if dep['dep'] == RCMOD or dep not in filtered_dependencies]
             if len(Search.find_dependencies(deps, (NSUBJ, AGENT, NSUBJPASS, DOBJ))) > 0:
@@ -155,7 +154,7 @@ class SentenceAnalyzer(Base):
 
         for el in to_check:
             for spec in spec_to_check:
-                if spec.f_wordIndex == el.f_wordIndex:
+                if spec.f_word_index == el.f_word_index:
                     self.logger.debug("Removing specifier: {}".format(spec))
                     verb.f_specifiers.remove(spec)
 
@@ -176,10 +175,10 @@ class SentenceAnalyzer(Base):
         spec_to_check.extend(verb.get_specifiers((SBAR,)))
 
         for spec in spec_to_check:
-            start_index = spec.f_wordIndex
-            end_index = start_index + spec.f_name.split(" ").length
+            start_index = spec.f_word_index
+            end_index = start_index + len(spec.f_name.split(" "))
             for el in to_check:
-                if start_index <= el.f_wordIndex < end_index:
+                if start_index <= el.f_word_index < end_index:
                     verb.f_specifiers.remove(spec)
 
         self.logger.debug("Filtered verb {}".format(verb))
@@ -507,7 +506,7 @@ class SentenceAnalyzer(Base):
 
         if head.label() in self.f_sentenceTags:
             leaves = head.leaves()
-            start_index = Search.find_sentence_index(self.f_full_sentence, leaves)
+            start_index = Search.find_sentence_index(self.f_full_sentence, head)
             end_index = start_index + len(leaves)
             ccomps = Search.find_dependencies(dependencies, CCOMP)
 

@@ -19,7 +19,7 @@ class CoreNLPWrapper(GenericCoreNLPParser):
             parsed_dep = dep['@type'].split(SPEC_SPLIT)
             if parsed_dep[0] != PUNCT and '@extra' not in dep:
                 result.append({
-                    'dep': parsed_dep[0], 'spec': parsed_dep[1] if len(parsed_dep) > 1 else None,
+                    'dep': parsed_dep[0], 'spec': parsed_dep[1] if len(parsed_dep) > 1 else "",
                     'dependent': int(dep['dependent']['@idx']), 'dependentGloss': dep['dependent']['#text'],
                     'governor': int(dep['governor']['@idx']), 'governorGloss': dep['governor']['#text']
                 })

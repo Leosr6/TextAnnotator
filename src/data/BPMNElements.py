@@ -1,35 +1,28 @@
 class ProcessModel:
-    f_nodes = []
-    f_flow_objects = []
-    f_edges = []
-    f_flows = []
+
+    def __init__(self):
+        self.nodes = []
+        self.edges = []
 
     def get_successors(self, node):
-        index = self.f_nodes.index(node)
-        return self.f_nodes[:index]
+        index = self.nodes.index(node)
+        return self.nodes[:index]
 
     def get_predecessors(self, node):
-        index = self.f_nodes.index(node)
-        return self.f_nodes[index + 1:]
+        index = self.nodes.index(node)
+        return self.nodes[index + 1:]
 
     def remove_node(self, node):
-        if node in self.f_nodes:
-            self.f_nodes.remove(node)
+        if node in self.nodes:
+            self.nodes.remove(node)
 
-        if node in self.f_flow_objects:
-            self.f_flow_objects.remove(node)
-
-        for pnode in self.f_nodes:
+        for pnode in self.nodes:
             if isinstance(pnode, Cluster) and node in pnode.process_nodes:
                 pnode.process_nodes.remove(node)
 
-        for flow in self.f_flows:
-            if flow.source == node or flow.target == node:
-                self.f_flows.remove(flow)
-
-        for edge in self.f_edges:
+        for edge in self.edges:
             if edge.source == node or edge.target == node:
-                self.f_edges.remove(edge)
+                self.edges.remove(edge)
 
 
 """ 
@@ -38,7 +31,6 @@ class ProcessModel:
     - SequenceFlow (edge)
     - FlowObject (node)
         - Activity
-            - Task
         - Event
         - Gateway
     - Cluster
@@ -48,8 +40,6 @@ class ProcessModel:
 
 
 class SequenceFlow:
-    source = None
-    target = None
 
     def __init__(self, source, target):
         self.source = source
@@ -57,15 +47,15 @@ class SequenceFlow:
 
 
 class FlowObject:
-    text = ""
+
+    def __init__(self):
+        self.text = ""
 
 
 class Cluster:
-    process_nodes = []
-    name = None
-    pool = None
 
     def __init__(self, name=None, pool=None):
+        self.process_nodes = []
         self.name = name
         self.pool = pool
 
@@ -79,26 +69,21 @@ class Pool(Cluster):
 
 
 class Event(FlowObject):
-    parent_node = None
-    class_type = None
-    class_sub_type = None
-    sub_type = None
 
     def __init__(self, event_type=None, sub_type=None):
+        super().__init__()
         self.class_type = event_type
         self.class_sub_type = sub_type
+        self.parent_node = None
+        self.sub_type = None
 
 
 class Gateway(FlowObject):
-    type = None
 
     def __init__(self, gateway_type=None):
+        super().__init__()
         self.type = gateway_type
 
 
 class Activity(FlowObject):
-    pass
-
-
-class Task(Activity):
     pass

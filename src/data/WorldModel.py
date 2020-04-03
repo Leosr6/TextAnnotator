@@ -1,10 +1,11 @@
 class WorldModel:
 
-    f_actions = []
-    f_actors = []
-    f_resources = []
-    f_flows = []
-    f_lastFlowAdded = None
+    def __init__(self):
+        self.f_actions = []
+        self.f_actors = []
+        self.f_resources = []
+        self.f_flows = []
+        self.f_lastFlowAdded = None
 
     def get_actions_of_sentence(self, stanford_sentence):
         return [action for action in self.f_actions if action.f_sentence == stanford_sentence]

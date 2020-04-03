@@ -9,23 +9,22 @@ from data.TextElements import DummyAction
 
 
 class ProcessModelBuilder(Base):
-    f_world = None
-    f_model = None
-    f_flow_action_map = {}
-    f_action_flow_map = {}
-    f_actor_name_map = {}
-    f_name_pool_map = {}
-    f_main_pool = None
-    f_not_assigned = []
-    f_last_pool = None
 
-    def __init__(self):
-        self.f_model = ProcessModel()
-
-    def create_process_model(self, world_model):
+    def __init__(self, world_model):
         self.f_world = world_model
+        self.f_model = ProcessModel()
+        self.f_flow_action_map = {}
+        self.f_action_flow_map = {}
+        self.f_actor_name_map = {}
+        self.f_name_pool_map = {}
+        self.f_main_pool = None
+        self.f_not_assigned = []
+        self.f_last_pool = None
+        self.element_flow_object_map = {}
+
+    def create_process_model(self):
         self.f_main_pool = Pool()
-        self.f_model.f_nodes.append(self.f_main_pool)
+        self.f_model.nodes.append(self.f_main_pool)
 
         self.create_actions()
         self.build_sequence_flows()
@@ -48,7 +47,8 @@ class ProcessModelBuilder(Base):
                 flow_object = self.create_task(action)
             else:
                 flow_object = self.create_event_node(action)
-                self.f_model.f_flow_objects.append(flow_object)
+                self.f_model.nodes.append(flow_object)
+                self.element_flow_object_map[action] = flow_object
                 flow_object.text = self.get_event_text(action) + " " + flow_object.text
 
             self.f_action_flow_map[action] = flow_object
@@ -77,33 +77,40 @@ class ProcessModelBuilder(Base):
             if flow.f_type == SEQUENCE and len(flow.f_multiples) == 1:
                 sequence_flow = SequenceFlow(self.to_process_node(flow.f_single),
                                              self.to_process_node(flow.f_multiples[0]))
-                self.f_model.f_edges.append(sequence_flow)
+                self.f_model.edges.append(sequence_flow)
+                self.element_flow_object_map[flow] = sequence_flow
             elif flow.f_type == EXCEPTION:
                 exception_event = Event(INTERMEDIATE_EVENT, ERROR_EVENT)
-                self.f_model.f_flow_objects.append(exception_event)
+                self.f_model.nodes.append(exception_event)
+                self.element_flow_object_map[flow] = exception_event
                 task = self.to_process_node(flow.f_single)
                 exception_event.parent_node = task
                 self.add_to_same_lane(task, exception_event)
 
                 sequence_flow = SequenceFlow(exception_event,
                                              self.to_process_node(flow.f_multiples[0]))
-                self.f_model.f_edges.append(sequence_flow)
+                self.f_model.edges.append(sequence_flow)
+                self.element_flow_object_map[flow] = sequence_flow
             elif flow.f_direction == SPLIT:
                 gateway = self.create_gateway(flow)
                 sequence_flow = SequenceFlow(self.to_process_node(flow.f_single), gateway)
-                self.f_model.f_edges.append(sequence_flow)
+                self.f_model.edges.append(sequence_flow)
+                self.element_flow_object_map[flow] = sequence_flow
                 self.add_to_prevalent_lane(flow, gateway)
                 for action in flow.f_multiples:
                     internal_flow = SequenceFlow(gateway, self.to_process_node(action))
-                    self.f_model.f_edges.append(internal_flow)
+                    self.f_model.edges.append(internal_flow)
+                    self.element_flow_object_map[flow] = internal_flow
             elif flow.f_direction == JOIN:
                 gateway = self.create_gateway(flow)
                 sequence_flow = SequenceFlow(gateway, self.to_process_node(flow.f_single))
-                self.f_model.f_edges.append(sequence_flow)
+                self.f_model.edges.append(sequence_flow)
+                self.element_flow_object_map[flow] = sequence_flow
                 self.add_to_prevalent_lane(flow, gateway)
                 for action in flow.f_multiples:
                     internal_flow = SequenceFlow(self.to_process_node(action), gateway)
-                    self.f_model.f_edges.append(internal_flow)
+                    self.f_model.edges.append(internal_flow)
+                    self.element_flow_object_map[flow] = internal_flow
 
     def remove_dummies(self):
         for action in self.f_world.f_actions:
@@ -115,31 +122,31 @@ class ProcessModelBuilder(Base):
         target_map = {}
 
         # Calculating the occurrences of each node as a source and as a target
-        for edge in self.f_model.f_edges:
+        for edge in self.f_model.edges:
             source_map[edge.source] = source_map.get(edge.source, 0) + 1
             target_map[edge.target] = target_map.get(edge.target, 0) + 1
 
-        for node in self.f_model.f_nodes:
-            if isinstance(node, Task) or isinstance(node, Gateway) or (isinstance(node, Event) and node.class_type == INTERMEDIATE_EVENT):
+        for node in self.f_model.nodes:
+            if isinstance(node, Activity) or isinstance(node, Gateway) or (isinstance(node, Event) and node.class_type == INTERMEDIATE_EVENT):
                 # If the node is not present, add it with 0 occurrences
                 source_map.setdefault(node, 0)
                 target_map.setdefault(node, 0)
 
                 if target_map[node] == 0 or (isinstance(node, Gateway) and source_map[node] == 1 and target_map[node] == 1):
                     end_event = Event(END_EVENT)
-                    self.f_model.f_nodes.append(end_event)
+                    self.f_model.nodes.append(end_event)
                     self.add_to_same_lane(node, end_event)
                     sequence_flow = SequenceFlow(node, end_event)
-                    self.f_model.f_flows.append(sequence_flow)
+                    self.f_model.edges.append(sequence_flow)
                 if source_map[node] == 0:
                     if isinstance(node, Event) and node.class_type == INTERMEDIATE_EVENT and node.parent_node:
                         continue
                     else:
                         start_event = Event(START_EVENT)
-                        self.f_model.f_nodes.append(start_event)
+                        self.f_model.nodes.append(start_event)
                         self.add_to_same_lane(node, start_event)
                         sequence_flow = SequenceFlow(start_event, node)
-                        self.f_model.f_flows.append(sequence_flow)
+                        self.f_model.edges.append(sequence_flow)
 
     def process_meta_activities(self):
         for action in self.f_world.f_actions:
@@ -159,10 +166,11 @@ class ProcessModelBuilder(Base):
                         self.remove_node(node)
 
     def create_task(self, action):
-        task = Task()
+        task = Activity()
         name = self.create_task_text(action)
         task.text = name
-        self.f_model.f_flow_objects.append(task)
+        self.f_model.nodes.append(task)
+        self.element_flow_object_map[action] = task
         return task
 
     def create_task_text(self, action):
@@ -303,7 +311,8 @@ class ProcessModelBuilder(Base):
             if name not in self.f_name_pool_map:
                 lane = Lane(name, self.f_main_pool)
                 self.f_main_pool.process_nodes.append(lane)
-                self.f_model.f_nodes.append(lane)
+                self.f_model.nodes.append(lane)
+                self.element_flow_object_map[actor] = lane
                 self.f_name_pool_map[name] = lane
                 return lane
             else:
@@ -316,7 +325,7 @@ class ProcessModelBuilder(Base):
             return self.f_action_flow_map[action]
         else:
             if isinstance(action, DummyAction):
-                task = Task()
+                task = Activity()
                 task.text = DUMMY_NODE
                 self.f_action_flow_map[action] = task
                 self.f_flow_action_map[task] = action
@@ -333,7 +342,7 @@ class ProcessModelBuilder(Base):
             gateway.type = INCLUSIVE_GATEWAY
         else:
             # Default type
-            gateway.f_type = EVENT_BASED_GATEWAY
+            gateway.type = EVENT_BASED_GATEWAY
             for action in flow.f_multiples:
                 node = self.f_action_flow_map.get(action, None)
                 if isinstance(node, Event) and node.class_type == INTERMEDIATE_EVENT and not node.class_sub_type:
@@ -342,7 +351,8 @@ class ProcessModelBuilder(Base):
                     gateway.type = EXCLUSIVE_GATEWAY
                     break
 
-        self.f_model.f_nodes.append(gateway)
+        self.f_model.nodes.append(gateway)
+        self.element_flow_object_map[flow] = gateway
         return gateway
 
     def add_to_prevalent_lane(self, flow, gateway):
@@ -354,10 +364,11 @@ class ProcessModelBuilder(Base):
         for action in actions:
             if not isinstance(action, DummyAction):
                 lane = self.get_lane_for_node(self.to_process_node(action))
-                lane_count[lane] = lane_count.get(lane, 0) + 1
+                if lane:
+                    lane_count[lane] = lane_count.get(lane, 0) + 1
 
         if len(lane_count) > 0:
-            lane = max(lane_count, key=dict.get)
+            lane = max(lane_count, key=lane_count.get)
             lane.process_nodes.append(gateway)
 
     def add_to_same_lane(self, source, node):
@@ -366,7 +377,7 @@ class ProcessModelBuilder(Base):
             lane.process_nodes.append(node)
 
     def get_lane_for_node(self, source):
-        for node in self.f_model.f_nodes:
+        for node in self.f_model.nodes:
             if isinstance(node, Lane):
                 if source in node.process_nodes:
                     return node
@@ -377,7 +388,7 @@ class ProcessModelBuilder(Base):
         pred_edge = None
         succ_edge = None
 
-        for edge in self.f_model.f_edges:
+        for edge in self.f_model.edges:
             if edge.target == node:
                 pred_edge = edge
             if edge.source == node:
@@ -386,10 +397,8 @@ class ProcessModelBuilder(Base):
         self.f_model.remove_node(node)
 
         if pred_edge and succ_edge:
-            self.f_model.f_edges.remove(pred_edge)
-            self.f_model.f_edges.remove(succ_edge)
             sequence_flow = SequenceFlow(pred_edge.source, succ_edge.target)
-            self.f_model.f_flows.append(sequence_flow)
+            self.f_model.edges.append(sequence_flow)
             return sequence_flow
         else:
             return None
@@ -495,7 +504,7 @@ class ProcessModelBuilder(Base):
             specs = action.get_specifiers(PP)
 
             if not action.f_xcomp:
-                specs.extend(action.get_specificers(SBAR))
+                specs.extend(action.get_specifiers(SBAR))
 
             specs.sort(reverse=True)
             found = False

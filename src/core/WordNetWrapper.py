@@ -1,3 +1,4 @@
+from functools import reduce
 import nltk
 from nltk.corpus import wordnet as wn
 from nltk.metrics.distance import edit_distance
@@ -17,38 +18,34 @@ class WordNetWrapper(Base):
         for word in f_acceptedAMODforLoops:
             synsets = wn.synsets(word, POS_ADJECTIVE)
             for synset in synsets:
-                for lemma in synset.lemma_names():
-                    self.accepted_AMOD_list.append(lemma)
+                self.accepted_AMOD_list.extend(synset.lemma_names())
 
             synsets = wn.synsets(word, POS_ADVERB)
             for synset in synsets:
-                for lemma in synset.lemma_names():
-                    self.accepted_AMOD_list.append(lemma)
+                self.accepted_AMOD_list.extend(synset.lemma_names())
 
         for word in f_acceptedForForwardLink:
             synsets = wn.synsets(word, POS_ADJECTIVE)
             for synset in synsets:
-                for lemma in synset.lemma_names():
-                    self.accepted_forward_links.append(lemma)
+                self.accepted_forward_links.extend(synset.lemma_names())
 
             synsets = wn.synsets(word, POS_ADVERB)
             for synset in synsets:
-                for lemma in synset.lemma_names():
-                    self.accepted_forward_links.append(lemma)
+                self.accepted_forward_links.extend(synset.lemma_names())
 
     def person_or_system(self, full_noun, main_noun):
-        full_noun = full_noun.lower()
         if full_noun in f_personCorrectorList or full_noun in f_personPronouns:
             return True
 
         synsets = wn.synsets(full_noun, POS_NOUN)
-        if len(synsets) == 0 or main_noun not in synsets[0].lemma_names():
+        lemmas = map(str.lower, reduce(lambda x, synset: x + synset.lemma_names(), synsets, []))
+        if len(synsets) == 0 or main_noun not in lemmas:
             synsets = wn.synsets(main_noun, POS_NOUN)
 
         if len(synsets) > 0:
             return self.check_hypernym_tree(synsets, f_realActorDeterminers)
         else:
-            self.logger.error("Could not find Person or System {} and {}".format(full_noun, main_noun))
+            self.logger.info("Could not find Person or System {} and {}".format(full_noun, main_noun))
             return False
 
     def can_be_group_action(self, main_noun):
@@ -56,19 +53,20 @@ class WordNetWrapper(Base):
         if len(synsets) > 0:
             return self.check_hypernym_tree(synsets, [GROUP_ACTION])
         else:
-            self.logger.error("Could not find group action noun {}".format(main_noun))
+            self.logger.info("Could not find group action noun {}".format(main_noun))
             return False
 
     def is_meta_actor(self, full_noun, noun):
         if full_noun not in f_personCorrectorList:
             synsets = wn.synsets(full_noun, POS_NOUN)
-            if len(synsets) == 0 or noun not in synsets[0].lemma_names():
+            lemmas = map(str.lower, reduce(lambda x, synset: x + synset.lemma_names(), synsets, []))
+            if len(synsets) == 0 or noun not in lemmas:
                 synsets = wn.synsets(noun, POS_NOUN)
 
             if len(synsets) > 0:
                 return self.check_hypernym_tree(synsets, f_metaActorsDeterminers)
             else:
-                self.logger.error("Could not find Meta Actor {} and {}".format(full_noun, noun))
+                self.logger.info("Could not find Meta Actor {} and {}".format(full_noun, noun))
 
         return False
 
@@ -83,7 +81,7 @@ class WordNetWrapper(Base):
         if len(synsets) > 0:
             return self.check_hypernym_tree(synsets, [verb_type])
         else:
-            self.logger.error("Could not find Verb {} of type {}".format(verb, verb_type))
+            self.logger.info("Could not find Verb {} of type {}".format(verb, verb_type))
             return False
 
     def is_weak_verb(self, name):
@@ -99,7 +97,7 @@ class WordNetWrapper(Base):
                 for word in words[:-1]:
                     base_form += word + " "
 
-            base_form += synsets[0].lemma_names()[0]
+            base_form += self.get_best_fit(synsets, words[-1])
             return base_form
         else:
             self.logger.error("Could not find base form of {}".format(name))
@@ -110,7 +108,7 @@ class WordNetWrapper(Base):
         if len(synsets) > 0:
             return self.check_hypernym_tree(synsets, [TIME_PERIOD])
         else:
-            self.logger.error("Could not find time period {}".format(word))
+            self.logger.info("Could not find time period {}".format(word))
             return False
 
     @staticmethod
@@ -122,9 +120,9 @@ class WordNetWrapper(Base):
             for lemma in synset.lemmas():
                 for derived_lemma in lemma.derivationally_related_forms():
                     if derived_lemma.synset().pos() == POS_VERB:
-                        distance = edit_distance(derived_lemma.name(), word)
+                        distance = edit_distance(derived_lemma.name().lower(), word)
                         if not derived_verb or distance < lowest_distance:
-                            derived_verb = derived_lemma.name()
+                            derived_verb = derived_lemma.name().lower()
                             lowest_distance = distance
 
         return derived_verb
@@ -141,7 +139,7 @@ class WordNetWrapper(Base):
         if synset not in checked:
             checked.append(synset)
             for word in word_list:
-                if word.lower() in synset.lemma_names():
+                if word in map(str.lower, synset.lemma_names()):
                     return True
 
             for hypernym in synset.hypernyms():
@@ -149,6 +147,19 @@ class WordNetWrapper(Base):
                     return True
 
         return False
+
+    @staticmethod
+    def get_best_fit(synsets, word):
+        best_fit = None
+        lowest_distance = 0
+        for synset in synsets:
+            for lemma in synset.lemma_names():
+                distance = edit_distance(lemma.lower(), word)
+                if not best_fit or distance < lowest_distance:
+                    best_fit = lemma.lower()
+                    lowest_distance = distance
+
+        return best_fit
 
 
 WordNetWrapper = WordNetWrapper()

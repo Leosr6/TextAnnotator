@@ -164,7 +164,7 @@ class SentenceAnalyzer(Base):
                 verb.f_copIndex = -1
                 for obj_spec in el.get_specifiers((PP,)):
                     for spec in spec_to_check:
-                        if spec.f_name.lower() == obj_spec.f_name.lower():
+                        if spec.f_name == obj_spec.f_name:
                             self.logger.debug("Removing cop-specifier: {}".format(spec.f_name))
                             verb.f_specifiers.remove(spec)
 

@@ -11,4 +11,4 @@ class StanfordSentence:
         self.f_id = sentence_id
 
     def __str__(self):
-        return " ".join(self.f_tree.leaves())
+        return " ".join([token["word"] for token in self.f_tokens])

@@ -5,12 +5,18 @@ class ProcessModel:
         self.edges = []
 
     def get_successors(self, node):
-        index = self.nodes.index(node)
-        return self.nodes[:index]
+        if node in self.nodes:
+            index = self.nodes.index(node)
+            return self.nodes[:index]
+        else:
+            return []
 
     def get_predecessors(self, node):
-        index = self.nodes.index(node)
-        return self.nodes[index + 1:]
+        if node in self.nodes:
+            index = self.nodes.index(node)
+            return self.nodes[index + 1:]
+        else:
+            return []
 
     def remove_node(self, node):
         if node in self.nodes:

@@ -37,7 +37,7 @@ def TextReaderService():
     text = None
 
     # Checks if the user uploaded a file or a text
-    file = request.files.get("file", None)
+    file = request.files.get("file")
     if file and allowed_file(file.filename):
         text = file.read()
     elif request.content_type == "text/plain":

@@ -3,7 +3,6 @@ from core.CoreNLPWrapper import CoreNLPWrapper
 from core.Base import Base
 from data.WorldModel import WorldModel
 from core.SentenceAnalyzer import SentenceAnalyzer
-from core.WordNetWrapper import WordNetWrapper
 from data.StanfordSentence import StanfordSentence
 from data.SentenceElements import *
 from data.TextElements import *
@@ -92,7 +91,7 @@ class TextAnalyzer(Base):
             for dep in markers:
                 action = self.find_node_action(dep['governor'], analyzed_sentence.f_actions, deps)
                 if action:
-                    value = dep['dependentGloss'].lower()
+                    value = dep['dependentGloss']
                     self.logger.debug("Marking {} with marker {}".format(action, value))
                     action.f_marker = value
 
@@ -100,7 +99,7 @@ class TextAnalyzer(Base):
             for dep in markers:
                 action = self.find_node_action(dep['governor'], analyzed_sentence.f_actions, deps)
                 if action and action.f_word_index > dep['dependent']:
-                    value = dep['dependentGloss'].lower()
+                    value = dep['dependentGloss']
                     if value in f_parallelIndicators:
                         action.f_marker = WHILE
                     elif value != ALSO:
@@ -112,7 +111,7 @@ class TextAnalyzer(Base):
             for dep in markers:
                 action = self.find_node_action(dep['dependent'], analyzed_sentence.f_actions, deps)
                 if action:
-                    value = dep['spec'].lower()
+                    value = dep['spec']
                     self.logger.debug("Marking {} with prepc {}".format(action, value))
                     action.f_prepc = value
 
@@ -121,7 +120,7 @@ class TextAnalyzer(Base):
                 if dep['dependentGloss'] != THAT:
                     action = self.find_node_action(dep['governor'], analyzed_sentence.f_actions, deps)
                     if action:
-                        value = dep['dependentGloss'].lower()
+                        value = dep['dependentGloss']
                         if value in f_conditionIndicators:
                             value = IFCOMPLM
                         self.logger.debug("Marking {} with marker-complm {}".format(action, value))
@@ -215,9 +214,11 @@ class TextAnalyzer(Base):
                     action.f_copIndex = reference_action.f_copIndex
 
     def determine_links(self):
-        for first_action in self.f_world.f_actions:
-            for second_action in self.f_world.f_actions:
-                if first_action != second_action and self.is_linkable(first_action, second_action):
+        actions = list(reversed(self.f_world.f_actions))
+        for first_index in range(len(actions) - 1):
+            for second_index in range(first_index + 1, len(actions)):
+                first_action, second_action = actions[first_index], actions[second_index]
+                if self.is_linkable(first_action, second_action):
                     first_action.f_link = second_action
                     first_action.f_linkType = self.determine_link_type(first_action, second_action)
                     self.logger.debug("Linked actions {} and {}".format(first_action, second_action))
@@ -350,8 +351,7 @@ class TextAnalyzer(Base):
             return None
 
         sentence = self.f_raw_sentences[sentence_id]
-        actions = self.f_world.get_actions_of_sentence(sentence)
-        actions.sort(reverse=True)
+        actions = reversed(self.f_world.get_actions_of_sentence(sentence))
 
         for action in actions:
             # TODO: why is this inside the loop?
@@ -472,7 +472,7 @@ class TextAnalyzer(Base):
                 return False
 
             if not source.f_xcomp and not target.f_xcomp:
-                return self.check_specifier_equal(source, target, PP, [TO, ABOUT])
+                return self.specifier_equal_list(source, target, PP, [TO, ABOUT])
             elif source.f_xcomp:
                 return self.is_linkable(source.f_xcomp, target.f_xcomp)
             else:
@@ -531,13 +531,13 @@ class TextAnalyzer(Base):
         return conj_type, status
 
     def handle_single_action(self, stanford_sentence, flow, action, came_from, open_split):
-        if not action.f_marker == IF and not action.f_preAdvMod and action.f_preAdvMod not in f_sequenceIndicators and len(open_split) > 0:
+        if action.f_marker != IF and action.f_preAdvMod != OTHERWISE and action.f_preAdvMod not in f_sequenceIndicators and len(open_split) > 0:
             came_from.extend(open_split)
             self.clear_split(open_split)
 
         if len(came_from) == 0:
             self.create_dummy_node(came_from, flow)
-        elif len(came_from) >= 1:
+        if len(came_from) >= 1:
             if len(came_from) > 1:
                 dummy_flow = Flow(stanford_sentence)
                 dummy_action = DummyAction(action)
@@ -642,7 +642,7 @@ class TextAnalyzer(Base):
     def build_join(self, flow, came_from, action):
         flow.f_direction = JOIN
         flow.f_single = action
-        flow.f_multiples = came_from
+        flow.f_multiples = copy(came_from)
         other_flow = self.find_split(came_from[0])
         if other_flow:
             flow.f_type = other_flow.f_type
@@ -742,7 +742,7 @@ class TextAnalyzer(Base):
     def get_ends(self, multiples):
         result = []
         for action in multiples:
-            if self.has_incoming_link(action, JUMP):
+            if not self.has_incoming_link(action, JUMP):
                 result.extend(self.get_end(action))
             else:
                 self.logger.info("Left out action, due to JUMP link")
@@ -750,8 +750,7 @@ class TextAnalyzer(Base):
         return result
 
     def find_flow(self, action, target):
-        flows = self.f_world.f_flows
-        flows.sort(reverse=True)
+        flows = reversed(self.f_world.f_flows)
         for flow in flows:
             if target != (flow.f_direction == JOIN):
                 if action in flow.f_multiples:
@@ -795,7 +794,7 @@ class TextAnalyzer(Base):
         if animate_type == INANIMATE:
             objects.extend(self.f_world.get_resources_of_sentence(sentence))
 
-        objects.sort(reverse=True)
+        objects = reversed(objects)
         candidates = {}
 
         for obj in objects:
@@ -862,9 +861,10 @@ class TextAnalyzer(Base):
         return False
 
     @staticmethod
-    def check_specifier_equal(source, target, spec_type, head_word_for_unknowns):
+    def specifier_equal_list(source, target, spec_type, words_unknowns):
         for source_spec in source.get_specifiers(spec_type):
-            if source_spec.f_pt in (CORE, GENITIVE) or (source_spec.f_pt == UNKNOWN and source_spec.f_headWord in head_word_for_unknowns):
+            if source_spec.f_pt in (CORE, GENITIVE) or \
+                    (source_spec.f_pt == UNKNOWN and words_unknowns and source_spec.f_headWord in words_unknowns):
                 if source_spec.f_name not in WordNetWrapper.accepted_AMOD_list:
                     found_spec = False
                     for target_spec in target.get_specifiers(spec_type):
@@ -873,6 +873,22 @@ class TextAnalyzer(Base):
                             break
                     if not found_spec:
                         return False
+
+        return True
+
+    @staticmethod
+    def check_specifier_equal(source, target, spec_type, head_word):
+        for source_spec in source.get_specifiers(spec_type):
+            if head_word and head_word != source_spec.f_headWord:
+                continue
+            if source_spec.f_name not in WordNetWrapper.accepted_AMOD_list:
+                found_spec = False
+                for target_spec in target.get_specifiers(spec_type):
+                    if source_spec.f_name == target_spec.f_name:
+                        found_spec = True
+                        break
+                if not found_spec:
+                    return False
 
         return True
 

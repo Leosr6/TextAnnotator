@@ -20,8 +20,8 @@ class CoreNLPWrapper(GenericCoreNLPParser):
             if parsed_dep[0] != PUNCT and '@extra' not in dep:
                 result.append({
                     'dep': parsed_dep[0], 'spec': parsed_dep[1] if len(parsed_dep) > 1 else "",
-                    'dependent': int(dep['dependent']['@idx']), 'dependentGloss': dep['dependent']['#text'],
-                    'governor': int(dep['governor']['@idx']), 'governorGloss': dep['governor']['#text']
+                    'dependent': int(dep['dependent']['@idx']), 'dependentGloss': dep['dependent']['#text'].lower(),
+                    'governor': int(dep['governor']['@idx']), 'governorGloss': dep['governor']['#text'].lower()
                 })
 
         return result
@@ -46,6 +46,6 @@ class CoreNLPWrapper(GenericCoreNLPParser):
         sentences = sentences if isinstance(sentences, list) else [sentences]
 
         for sentence in sentences:
-            yield (ParentedTree.fromstring(sentence['parse']),
+            yield (ParentedTree.fromstring(sentence['parse'], read_leaf=lambda leaf: leaf.lower()),
                    self.make_deps(sentence['dependencies'][3]['dep']),
                    sentence['tokens']['token'])

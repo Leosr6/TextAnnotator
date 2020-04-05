@@ -13,8 +13,8 @@ class ElementsBuilder(Base):
         actor = None
         node = Search.find_dep_in_tree(full_sentence, node_index)
         full_noun = cls.get_full_noun(node, node_index, dependencies)
-        if not WordNetWrapper.person_or_system(full_noun, node[0].lower()):
-            if node.parent().label() == CD or WordNetWrapper.can_be_group_action(node[0].lower()):
+        if not WordNetWrapper.person_or_system(full_noun, node[0]):
+            if node.parent().label() == CD or WordNetWrapper.can_be_group_action(node[0]):
                 preps = Search.find_dependencies(dependencies, PREP)
                 for spec in preps:
                     if spec['spec'] in f_realActorPPIndicators and spec['governor'] == node_index:
@@ -35,10 +35,10 @@ class ElementsBuilder(Base):
 
     @classmethod
     def create_internal_actor(cls, origin, full_sentence, node, node_index, dependencies):
-        actor = Actor(origin, node_index, node[0].lower())
+        actor = Actor(origin, node_index, node[0])
         cls.determine_noun_specifiers(origin, full_sentence, node, node_index, dependencies, actor)
         full_noun = cls.get_full_noun(node, node_index, dependencies)
-        if WordNetWrapper.is_meta_actor(full_noun, node[0].lower()):
+        if WordNetWrapper.is_meta_actor(full_noun, node[0]):
             actor.f_metaActor = True
 
         return actor
@@ -106,10 +106,10 @@ class ElementsBuilder(Base):
         node = Search.find_dep_in_tree(full_sentence, node_index)
         full_noun = cls.get_full_noun(node, node_index, dependencies)
 
-        if WordNetWrapper.person_or_system(full_noun, node[0].lower()) or Processing.can_be_person_pronoun(node[0].lower()):
+        if WordNetWrapper.person_or_system(full_noun, node[0]) or Processing.can_be_person_pronoun(node[0]):
             result = cls.create_internal_actor(origin, full_sentence, node, node_index, dependencies)
         else:
-            result = Resource(origin, node_index, node[0].lower())
+            result = Resource(origin, node_index, node[0])
             cls.determine_noun_specifiers(origin, full_sentence, node, node_index, dependencies, result)
 
         result.f_subjectRole = False
@@ -148,7 +148,7 @@ class ElementsBuilder(Base):
                     noun += dep['dependentGloss'] + " "
 
         noun += node[0] + sufix
-        return noun.lower()
+        return noun
 
     @classmethod
     def determine_noun_specifiers(cls, origin, full_sentence, node, node_index, dependencies, element):
@@ -338,7 +338,7 @@ class ElementsBuilder(Base):
                 dep_in_tree = Search.find_dep_in_tree(full_sentence, dep['dependent'])
                 phrase_tree = Search.get_full_phrase_tree(dep_in_tree, PP)
                 phrase_tree = cls.delete_branches(phrase_tree, (S, SBAR))
-                phrase = " ".join(phrase_tree.leaves()).lower()
+                phrase = " ".join(phrase_tree.leaves())
                 if phrase in f_conditionIndicators:
                     return True
 
@@ -366,7 +366,7 @@ class ElementsBuilder(Base):
             if dep['governor'] == node_index:
                 if dep['governor'] + 1 != dep['dependent']:
                     continue
-                spec = Specifier(origin, dep['dependent'], dep['dependentGloss'].lower())
+                spec = Specifier(origin, dep['dependent'], dep['dependentGloss'])
                 spec.f_type = NNAFTER
                 element.f_specifiers.append(spec)
 

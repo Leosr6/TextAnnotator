@@ -1,4 +1,5 @@
 import atexit
+from os import path
 from socket import error
 import json
 from nltk.parse.corenlp import CoreNLPServer
@@ -10,17 +11,20 @@ from core.ProcessModelBuilder import ProcessModelBuilder
 
 app = Flask(__name__)
 ALLOWED_EXTENSIONS = {'txt'}
+CORENLP_PATH = path.join(path.dirname(path.dirname(path.abspath(__file__))), "resources/corenlp")
 
 # Starting the CoreNLP Server
 try:
-    server = CoreNLPServer(corenlp_options=['-serverProperties',
-                                            'C:/Users/LEOSR/PycharmProjects/TextToBPM/resources/stanford-corenlp-full-2018-10-05/StanfordCoreNLP-test.properties'],
-                           path_to_jar='C:/Users/LEOSR/PycharmProjects/TextToBPM/resources/stanford-corenlp-full-2018-10-05/stanford-corenlp-3.9.2.jar',
-                           path_to_models_jar='C:/Users/LEOSR/PycharmProjects/TextToBPM/resources/stanford-corenlp-full-2018-10-05/stanford-corenlp-3.9.2-models.jar',
+    server = CoreNLPServer(corenlp_options=["-preload",
+                                            "tokenize,ssplit,pos,parse,depparse",
+                                            "-serverProperties",
+                                            path.join(CORENLP_PATH, "StanfordCoreNLP-test.properties")],
+                           path_to_jar=path.join(CORENLP_PATH, "stanford-corenlp-3.9.2.jar"),
+                           path_to_models_jar=path.join(CORENLP_PATH, "stanford-corenlp-3.9.2-models.jar"),
                            verbose=True,
-                           java_options='-Xmx4g',
+                           java_options="-Xmx4g",
                            port=9000)
-    server._classpath = 'C:/Users/LEOSR/PycharmProjects/TextToBPM/resources/stanford-corenlp-full-2018-10-05/*'
+    server._classpath = path.join(CORENLP_PATH, "*")
     server.start()
     atexit.register(server.stop)
 except error:

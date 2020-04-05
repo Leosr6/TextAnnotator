@@ -19,6 +19,7 @@ class Element:
         self.f_specifiers = []
 
     def get_specifiers(self, types):
+        types = (types,) if isinstance(types, str) else types
         return [spec for spec in self.f_specifiers if spec.f_type in types]
 
 

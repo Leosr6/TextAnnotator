@@ -9,11 +9,13 @@ def count_children(sentence, types):
 
 
 def find_children(sentence, types):
+    types = (types,) if isinstance(types, str) else types
     children = [child for child in list(sentence) if not isinstance(child, str) and child.label() in types]
     return children
 
 
 def find_dependencies(dependencies, types):
+    types = (types,) if isinstance(types, str) else types
     deps = [dep for dep in dependencies if dep['dep'] in types or (dep['spec'] and dep['spec'] in types)]
     return deps
 
@@ -57,13 +59,13 @@ def get_full_phrase(tree_node, label_type):
     return " ".join(tree.leaves())
 
 
-def find_in_tree(tree, types, exclude):
+def find_in_tree(tree, label, exclude):
     result = []
-    if tree.label() in types:
+    if tree.label() == label:
         result.append(tree)
     for child in list(tree):
         if not isinstance(child, str) and child.label() not in exclude:
-            result.extend(find_in_tree(child, types, exclude))
+            result.extend(find_in_tree(child, label, exclude))
 
     return result
 

@@ -18,7 +18,7 @@ try:
     server = CoreNLPServer(corenlp_options=["-preload",
                                             "tokenize,ssplit,pos,parse,depparse",
                                             "-serverProperties",
-                                            path.join(CORENLP_PATH, "StanfordCoreNLP-test.properties")],
+                                            path.join(CORENLP_PATH, "StanfordCoreNLP-serverProps.properties")],
                            path_to_jar=path.join(CORENLP_PATH, "stanford-corenlp-3.9.2.jar"),
                            path_to_models_jar=path.join(CORENLP_PATH, "stanford-corenlp-3.9.2-models.jar"),
                            verbose=True,
@@ -36,7 +36,7 @@ def allowed_file(filename):
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-@app.route("/textreader", methods=["POST"])
+@app.route("/", methods=["POST"])
 def TextReaderService():
     text = None
 
@@ -67,3 +67,7 @@ def generate_metadata(text):
     text_generator = TextGenerator(text_analyzer, model_builder)
 
     return text_generator.create_metadata()
+
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0')

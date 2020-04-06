@@ -12,8 +12,10 @@ class WordNetWrapper(Base):
         self.accepted_forward_links = []
         self.accepted_AMOD_list = []
 
-        if not nltk.wordnet:
-            nltk.download('wordnet')
+        try:
+            nltk.data.find("corpora/wordnet")
+        except LookupError:
+            nltk.download("wordnet")
 
         for word in f_acceptedAMODforLoops:
             synsets = wn.synsets(word, POS_ADJECTIVE)

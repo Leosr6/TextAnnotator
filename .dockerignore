@@ -1,0 +1,7 @@
+README.md
+venv
+resources/models
+.idea
+.git
+src/__pycache__
+src/*/__pycache__

@@ -46,6 +46,8 @@ class CoreNLPWrapper(GenericCoreNLPParser):
         sentences = sentences if isinstance(sentences, list) else [sentences]
 
         for sentence in sentences:
-            yield (ParentedTree.fromstring(sentence['parse'], read_leaf=lambda leaf: leaf.lower()),
+            yield (ParentedTree.fromstring(sentence['parse'],
+                                           read_leaf=lambda leaf: leaf.lower(),
+                                           read_node=lambda node: node.split("-")[0]),
                    self.make_deps(sentence['dependencies'][3]['dep']),
                    sentence['tokens']['token'])

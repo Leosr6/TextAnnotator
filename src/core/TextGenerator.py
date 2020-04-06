@@ -20,7 +20,7 @@ class TextGenerator(Base):
 
         metadata = {
             "processList": self.create_process_list(),
-            "text": self.create_text(stanford_sentences, )
+            "text": self.create_text(stanford_sentences)
         }
 
         return metadata
@@ -58,6 +58,7 @@ class TextGenerator(Base):
     def create_text(self, stanford_sentences):
 
         text = {}
+        stanford_sentences.sort(key=lambda s: s.f_id)
 
         for sentence in stanford_sentences:
             text[sentence] = {
@@ -87,7 +88,7 @@ class TextGenerator(Base):
                         if split_sentence:
                             split_sentence["newSplitPath"] = True
 
-        return list(text.values())
+        return [text[sentence] for sentence in stanford_sentences]
 
     def get_process_id(self, flow_object):
         for pool, process_id in self.process_id_map.items():

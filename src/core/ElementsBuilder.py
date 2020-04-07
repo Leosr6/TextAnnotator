@@ -55,7 +55,7 @@ class ElementsBuilder(Base):
         mod_index = cls.get_modifiers(node_index, dependencies)
         if mod_index:
             mod = Search.find_dep_in_tree(full_sentence, mod_index)
-            action.f_mod = mod
+            action.f_mod = mod[0]
             action.f_modPos = mod_index
 
         action.f_negated = cls.is_negated(node, dependencies)
@@ -63,7 +63,7 @@ class ElementsBuilder(Base):
         cop_index = cls.get_cop(node_index, dependencies)
         if cop_index:
             cop = Search.find_dep_in_tree(full_sentence, cop_index)
-            action.f_cop = cop
+            action.f_cop = cop[0]
             action.f_copIndex = cop_index
 
         prt = cls.get_prt(node_index, dependencies)
@@ -431,8 +431,9 @@ class ElementsBuilder(Base):
     @classmethod
     def delete_branches_recursive(cls, tree, branches):
         for child in tree:
-            if child.label() in branches:
-                index = child.treeposition()[1:]
-                del(tree[index])
-            else:
-                cls.delete_branches_recursive(child, branches)
+            if not isinstance(child, str):
+                if child.label() in branches:
+                    index = child.treeposition()[1:]
+                    del(tree[index])
+                else:
+                    cls.delete_branches_recursive(child, branches)

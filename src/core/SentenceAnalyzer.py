@@ -37,7 +37,7 @@ class SentenceAnalyzer(Base):
         actions.sort(key=lambda a: a.f_word_index)
 
         for action in actions:
-            self.f_world.f_actions.append(action)
+            self.f_world.add_action(action)
 
         self.logger.debug("Extracted actions {}".format(actions))
 
@@ -122,13 +122,13 @@ class SentenceAnalyzer(Base):
         # Add everything to the world model
 
         for actor in actors:
-            self.f_world.f_actors.append(actor)
+            self.f_world.add_actor(actor)
 
         for el in all_objects:
             if isinstance(el, Actor):
-                self.f_world.f_actors.append(el)
+                self.f_world.add_actor(el)
             else:
-                self.f_world.f_resources.append(el)
+                self.f_world.add_resource(el)
 
         for action in final_actions:
             self.f_analyzed_sentence.f_actions.append(action)
@@ -136,12 +136,12 @@ class SentenceAnalyzer(Base):
                 actor_from = action.f_xcomp.f_actorFrom
                 obj = action.f_xcomp.f_object
                 if actor_from:
-                    self.f_world.f_actors.append(actor_from)
+                    self.f_world.add_actor(actor_from)
                 if obj:
                     if isinstance(obj, Actor):
-                        self.f_world.f_actors.append(obj)
+                        self.f_world.add_actor(obj)
                     else:
-                        self.f_world.f_resources.append(obj)
+                        self.f_world.add_resource(obj)
 
     def filter_verb(self, verb, actors, objects):
         to_check = []

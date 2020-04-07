@@ -264,7 +264,7 @@ class TextAnalyzer(Base):
                                     processed.append(conjoined[0])
                                 elif len(came_from) > 1:
                                     self.build_join(flow, came_from, conjoined[0])
-                                    self.f_world.f_flows.append(flow)
+                                    self.f_world.add_flow(flow)
                                 else:
                                     came_from.append(conjoined[0])
                         elif conj_type == MIXED:
@@ -285,7 +285,7 @@ class TextAnalyzer(Base):
                         flow_in = self.find_flow(action, True)
                         flow_out = self.find_flow(action, False)
                         dummy_action = DummyAction(action)
-                        self.f_world.f_actions.append(dummy_action)
+                        self.f_world.add_action(dummy_action)
 
                         if flow_in.f_direction == JOIN:
                             flow_in.f_single = dummy_action
@@ -305,7 +305,7 @@ class TextAnalyzer(Base):
                         flow_in = self.find_flow(link, True)
                         if flow_in.f_direction == SPLIT:
                             dummy_action = DummyAction(action)
-                            self.f_world.f_actions.append(dummy_action)
+                            self.f_world.add_action(dummy_action)
                             flow_in.f_multiples.append(dummy_action)
                             flow_in.f_multiples.remove(link)
                             new_flow = Flow(stanford_sentence)
@@ -314,7 +314,7 @@ class TextAnalyzer(Base):
                             new_flow.f_multiples.append(action)
                             new_flow.f_type = CHOICE
                             new_flow.f_direction = JOIN
-                            self.f_world.f_flows.append(new_flow)
+                            self.f_world.add_flow(new_flow)
                         else:
                             flow_in.f_multiples.append(action)
 
@@ -541,10 +541,10 @@ class TextAnalyzer(Base):
             if len(came_from) > 1:
                 dummy_flow = Flow(stanford_sentence)
                 dummy_action = DummyAction(action)
-                self.f_world.f_actions.append(dummy_action)
+                self.f_world.add_action(dummy_action)
                 self.build_join(dummy_flow, came_from, dummy_action)
                 self.clear_split(open_split)
-                self.f_world.f_flows.append(dummy_flow)
+                self.f_world.add_flow(dummy_flow)
             if action.f_marker == WHILE:
                 if self.f_world.f_lastFlowAdded:
                     self.f_world.f_lastFlowAdded.f_multiples.append(action)
@@ -584,7 +584,7 @@ class TextAnalyzer(Base):
                 if action.f_preAdvMod not in f_sequenceIndicators:
                     self.clear_split(open_split)
 
-            self.f_world.f_flows.append(flow)
+            self.f_world.add_flow(flow)
 
     def clear_split(self, open_split):
         open_split.clear()
@@ -597,7 +597,7 @@ class TextAnalyzer(Base):
                 open_split.clear()
             if self.f_last_split:
                 dummy_action = DummyAction(first_action)
-                self.f_world.f_actions.append(dummy_action)
+                self.f_world.add_action(dummy_action)
                 open_split.extend(self.get_ends(self.f_last_split.f_multiples))
                 self.f_last_split.f_multiples.append(dummy_action)
                 came_from.clear()
@@ -625,17 +625,17 @@ class TextAnalyzer(Base):
 
         if len(came_from) == 0:
             dummy_action = DummyAction(first_action)
-            self.f_world.f_actions.append(dummy_action)
+            self.f_world.add_action(dummy_action)
             flow.f_multiples.append(dummy_action)
             came_from.append(dummy_action)
 
         processed.extend(gateway_actions)
-        self.f_world.f_flows.append(flow)
+        self.f_world.add_flow(flow)
 
     def create_dummy_node(self, came_from, flow):
         if len(came_from) == 0:
             dummy_action = DummyAction()
-            self.f_world.f_actions.append(dummy_action)
+            self.f_world.add_action(dummy_action)
             came_from.append(dummy_action)
             flow.f_single = dummy_action
 
@@ -660,9 +660,9 @@ class TextAnalyzer(Base):
 
     def join_with_dummy_node(self, came_from, stanford_sentence, flow):
         dummy_action = DummyAction(came_from[0])
-        self.f_world.f_actions.append(dummy_action)
+        self.f_world.add_action(dummy_action)
         self.build_join(flow, came_from, dummy_action)
-        self.f_world.f_flows.append(flow)
+        self.f_world.add_flow(flow)
 
         new_flow = Flow(stanford_sentence)
         new_flow.f_single = dummy_action
@@ -685,25 +685,25 @@ class TextAnalyzer(Base):
             actions = [action for action in all_actions if action.f_actorFrom == actor]
             dummy_start = DummyAction(actions[0])
             dummy_end = DummyAction(actions[0])
-            self.f_world.f_actions.append(dummy_start)
-            self.f_world.f_actions.append(dummy_end)
+            self.f_world.add_action(dummy_start)
+            self.f_world.add_action(dummy_end)
             entries.append(dummy_start)
             exits.append(dummy_end)
             self.build_block(stanford_sentence, dummy_start, dummy_end, actions, conjs)
 
         flow.f_multiples = entries
         flow.f_type = CONCURRENCY
-        self.f_world.f_flows.append(flow)
+        self.f_world.add_flow(flow)
 
         dummy_action = DummyAction(all_actions[0])
-        self.f_world.f_actions.append(dummy_action)
+        self.f_world.add_action(dummy_action)
 
         join = Flow(stanford_sentence)
         join.f_multiples = exits
         join.f_type = CONCURRENCY
         join.f_single = dummy_action
         join.f_direction = JOIN
-        self.f_world.f_flows.append(join)
+        self.f_world.add_flow(join)
 
         came_from.clear()
         came_from.append(dummy_action)
@@ -725,8 +725,8 @@ class TextAnalyzer(Base):
 
         split.f_multiples = actions
         join.f_multiples = actions
-        self.f_world.f_flows.append(split)
-        self.f_world.f_flows.append(join)
+        self.f_world.add_flow(split)
+        self.f_world.add_flow(join)
 
     def get_end(self, action):
         for flow in self.f_world.f_flows:

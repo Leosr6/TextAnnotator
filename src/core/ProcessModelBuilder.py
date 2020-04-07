@@ -156,14 +156,13 @@ class ProcessModelBuilder(Base):
                     node = self.f_action_flow_map[action]
                     successors = self.f_model.get_successors(node)
                     self.remove_node(node)
-                    if action.f_name == TERMINATE and len(successors) == 1:
-                        first_succ = successors[0]
-                        if isinstance(first_succ, Event) and first_succ.class_type == END_EVENT:
-                            first_succ.class_sub_type = TERMINATE_EVENT
+                    if len(successors) == 1 and isinstance(successors[0], Event) and successors[0].class_type == END_EVENT:
+                        if action.f_name == TERMINATE:
+                            successors[0].class_sub_type = TERMINATE_EVENT
                 elif WordNetWrapper.is_verb_of_type(action.f_name, START_VERB):
                     node = self.f_action_flow_map[action]
                     predecessors = self.f_model.get_predecessors(node)
-                    if len(predecessors) == 1 and isinstance(predecessors[0], Event) and predecessors[0].type == START_EVENT:
+                    if len(predecessors) == 1 and isinstance(predecessors[0], Event) and predecessors[0].class_type == START_EVENT:
                         self.remove_node(node)
 
     def create_task(self, action):
@@ -396,6 +395,8 @@ class ProcessModelBuilder(Base):
                 succ_edge = edge
 
         self.f_model.remove_node(node)
+        if node in self.node_element_map:
+            del(self.node_element_map[node])
 
         if pred_edge and succ_edge:
             sequence_flow = SequenceFlow(pred_edge.source, succ_edge.target)

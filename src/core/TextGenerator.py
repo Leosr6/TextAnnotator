@@ -68,25 +68,24 @@ class TextGenerator(Base):
             }
 
         for node, element in self.model_builder.node_element_map.items():
-            if node in self.model_builder.f_model.nodes:
-                if isinstance(node, FlowObject):
-                    sentence = text.get(element.f_single.f_sentence) if isinstance(node, Gateway) else text.get(element.f_sentence)
-                    if sentence:
-                        snippet = {
-                            "startIndex": self.get_element_start_index(element),
-                            "endIndex": self.get_element_end_index(element),
-                            "processElementId": self.element_id_map[node],
-                            "processElementType": self.get_element_type(element, node),
-                            "resourceId": self.get_resource_id(node),
-                            "processId": self.get_process_id(node),
-                            "level": self.get_object_level(node)
-                        }
-                        sentence["snippetList"].append(snippet)
-                if isinstance(node, Gateway) and element.f_direction == SPLIT:
-                    for multiples in element.f_multiples:
-                        split_sentence = text.get(multiples.f_sentence)
-                        if split_sentence:
-                            split_sentence["newSplitPath"] = True
+            if isinstance(node, FlowObject):
+                sentence = text.get(element.f_single.f_sentence) if isinstance(node, Gateway) else text.get(element.f_sentence)
+                if sentence:
+                    snippet = {
+                        "startIndex": self.get_element_start_index(element),
+                        "endIndex": self.get_element_end_index(element),
+                        "processElementId": self.element_id_map[node],
+                        "processElementType": self.get_element_type(element, node),
+                        "resourceId": self.get_resource_id(node),
+                        "processId": self.get_process_id(node),
+                        "level": self.get_object_level(node)
+                    }
+                    sentence["snippetList"].append(snippet)
+            if isinstance(node, Gateway) and element.f_direction == SPLIT:
+                for multiples in element.f_multiples:
+                    split_sentence = text.get(multiples.f_sentence)
+                    if split_sentence:
+                        split_sentence["newSplitPath"] = True
 
         return [text[sentence] for sentence in stanford_sentences]
 

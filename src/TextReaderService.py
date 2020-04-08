@@ -43,14 +43,14 @@ def TextReaderService():
     # Checks if the user uploaded a file or a text
     file = request.files.get("file")
     if file and allowed_file(file.filename):
-        text = file.read()
+        text = file.read().decode("utf-8")
     elif request.content_type == "text/plain":
         text = request.get_data(as_text=True)
 
     if text:
         try:
             metadata = generate_metadata(text)
-            return make_response((json.dumps(metadata), 200, {"Content-Type": "application/json"}))
+            return make_response((json.dumps(metadata), 200, {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}))
         except Exception as e:
             return make_response((str(e), 500))
     else:

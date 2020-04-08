@@ -86,16 +86,16 @@ def get_action(actions, obj):
     for action in actions:
         if specifier_contains(action.f_specifiers, obj):
             return action
-        elif action.f_actorFrom:
+        if action.f_actorFrom:
             cmp_obj = action.f_actorFrom
             if obj == cmp_obj or specifier_contains(cmp_obj.f_specifiers, obj):
                 return action
-        elif action.f_object:
+        if action.f_object:
             cmp_obj = action.f_object
             if obj == cmp_obj or specifier_contains(cmp_obj.f_specifiers, obj):
                 return action
-        elif action.f_xcomp:
-            if specifier_contains(action.f_xcomp, obj):
+        if action.f_xcomp:
+            if specifier_contains(action.f_xcomp.f_specifiers, obj):
                 return action
             elif action.f_xcomp.f_object:
                 cmp_obj = action.f_xcomp.f_object

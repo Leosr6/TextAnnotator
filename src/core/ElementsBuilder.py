@@ -84,7 +84,7 @@ class ElementsBuilder(Base):
 
         for dep in to_check:
             if dep['governor'] == node_index:
-                dep_in_tree = Search.find_dep_in_tree(full_sentence, dep['governor'])
+                dep_in_tree = Search.find_dep_in_tree(full_sentence, dep['dependent'])
                 if dep['dep'] == DEP:
                     if dep_in_tree.parent().label()[0] != "V" or dep['dependent'] < dep['governor']:
                         continue
@@ -164,8 +164,8 @@ class ElementsBuilder(Base):
         cls.extract_SBAR_spec(origin, full_sentence, element, phrase_tree)
         cls.extract_PP_spec(origin, full_sentence, element, node_index, dependencies)
 
-        if node.parent().label() in f_relativeResolutionTags or node.label() in f_relativeResolutionWords:
-            if len(node.parent().parent()) == 1:
+        if node.label() in f_relativeResolutionTags or node[0] in f_relativeResolutionWords:
+            if len(node.parent()) == 1:
                 for spec in element.get_specifiers(PP):
                     if spec.f_headWord == OF:
                         return
@@ -326,7 +326,7 @@ class ElementsBuilder(Base):
             parts.append(node[0])
         else:
             for child in node:
-                if child.label() not in (SBAR, NP, ADJP, ADVP, PRN) and node.label() != PP:
+                if child.label() not in (SBAR, NP, ADJP, ADVP, PRN, S) and node.label() != PP:
                     parts.extend(cls.extract_verb_parts(child))
 
         return parts

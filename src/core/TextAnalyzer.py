@@ -318,6 +318,14 @@ class TextAnalyzer(Base):
                         else:
                             flow_in.f_multiples.append(action)
 
+        # When the text ends in a SPLIT, we must create a JOIN for it
+        if len(open_split) > 0:
+            dummy_flow = Flow(stanford_sentence)
+            dummy_action = DummyAction(action)
+            self.f_world.add_action(dummy_action)
+            self.build_join(dummy_flow, came_from + open_split, dummy_action)
+            self.f_world.add_flow(dummy_flow)
+
     def to_element(self, sentence_word_id):
         sentence_id, word_id = sentence_word_id
         sentence = self.f_raw_sentences[sentence_id]
@@ -366,10 +374,11 @@ class TextAnalyzer(Base):
 
     def find_reference(self, sentence_id, obj, animate_type, is_cop):
         candidates = self.get_reference_candidates(sentence_id, obj, animate_type, is_cop)
-        score = ROLE_MATCH_SCORE + (OBJECT_ROLE_SCORE if is_cop else SUBJECT_ROLE_SCORE)
+        min_score = ROLE_MATCH_SCORE + (OBJECT_ROLE_SCORE if is_cop else SUBJECT_ROLE_SCORE)
+        scores = candidates.values()
 
-        while sentence_id >= 0 and max(candidates.values()) < score:
-            score -= SENTENCE_DISTANCE_PENALTY
+        while sentence_id >= 0 and (len(scores) == 0 or max(scores) < min_score):
+            min_score -= SENTENCE_DISTANCE_PENALTY
             sentence_id -= 1
             new_candidates = self.get_reference_candidates(sentence_id, obj, animate_type, is_cop)
             if new_candidates:
@@ -791,7 +800,7 @@ class TextAnalyzer(Base):
                 continue
             objects.append(actor)
 
-        if animate_type == INANIMATE:
+        if animate_type != ANIMATE:
             objects.extend(self.f_world.get_resources_of_sentence(sentence))
 
         objects = reversed(objects)

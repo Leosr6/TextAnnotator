@@ -180,6 +180,7 @@ class SentenceAnalyzer(Base):
             for el in to_check:
                 if start_index <= el.f_word_index < end_index:
                     verb.f_specifiers.remove(spec)
+                    break
 
         self.logger.debug("Filtered verb {}".format(verb))
 

@@ -4,28 +4,59 @@ import { Card, CardBody, CardFooter, CardHeader,
           Button, CustomInput } from 'reactstrap';
 import "./App.css";
 
+const precedence = ["startevent", "endevent", "activity", "xorjoin", "xorsplit"]
+const stdColor = "black"
+
 function App() {
   const [text, setText] = useState("");
-  const [markedText, setMarkedText] = useState("");
-  const [selectedMakers, setSelectedMarkers] = useState([
-    {marker : "Activity", color : "red", checked : false},
-    {marker : "Start Event", color : "yellow", checked : false},
-    {marker : "XOR-Split", color : "darkblue", checked : false},
-    {marker : "XOR-Join", color : "lightblue", checked : false}
-  ]);
+  const [markedText, setMarkedText] = useState([]);
+  const [selectedMakers, setSelectedMarkers] = useState({
+    "activity" : {marker : "Activity", color : "red", checked : false},
+    "startevent" : {marker : "Start Event", color : "yellow", checked : false},
+    "xorsplit" : {marker : "XOR-Split", color : "darkblue", checked : false},
+    "xorjoin" : {marker : "XOR-Join", color : "lightblue", checked : false}
+  });
   const [useFile, setUseFile] = useState(false);
   const [disabledButton, setDisabledButton] = useState(false);
   const [metadata, setMetadata] = useState({});
   const textFile = useRef();
 
   useEffect(() => {
-    setMarkedText(JSON.stringify(metadata));
+    var text = [];
+
+    if (metadata.text) {
+      for (var sentence of metadata.text.values()) {
+        var typeMap = {};
+
+        for (var snippet of sentence.snippetList.values()) {
+          var elementType = snippet.processElementType.toLowerCase();
+          var markerData = selectedMakers[elementType];
+
+          if (markerData && markerData.checked) {
+            for (var wordIndex = snippet.startIndex; wordIndex <= snippet.endIndex; wordIndex++) {
+              var currentMap = typeMap[wordIndex];
+              if (!currentMap || precedence.indexOf(currentMap) > precedence.indexOf(elementType))
+                typeMap[wordIndex] = elementType;
+            }
+          }
+        }
+
+        var words = sentence.value.split(" ")
+
+        for (var wordIndex = 0; wordIndex < words.length; wordIndex++) {
+          var color = typeMap[wordIndex] ? selectedMakers[typeMap[wordIndex]].color : stdColor;
+          text.push({color, word : words[wordIndex]});
+        }
+      }
+    }
+
+    setMarkedText(text);
   }, [metadata, selectedMakers])
 
-  const setMaker = (e, index) => {
-    var newSelectedMarkers = [...selectedMakers]
+  const setMaker = (e, marker) => {
+    var newSelectedMarkers = {...selectedMakers}
 
-    newSelectedMarkers[index].checked = e.target.checked;
+    newSelectedMarkers[marker].checked = e.target.checked;
     setSelectedMarkers(newSelectedMarkers);
   }
 
@@ -92,11 +123,11 @@ function App() {
           <Card>
             <CardHeader>Markers</CardHeader>
             <CardBody>
-              {selectedMakers.map((markerData, index) =>
+              {Object.entries(selectedMakers).map((marker) =>
                 <div className="d-flex">
-                  <div className="colorbox" style={{backgroundColor : markerData.color}}/>
-                  <CustomInput type="switch" label={markerData.marker} id={markerData.marker} 
-                                checked={markerData.checked} onChange={(e) => setMaker(e, index)}/>
+                  <div className="colorbox" style={{backgroundColor : marker[1].color}}/>
+                  <CustomInput type="switch" label={marker[1].marker} id={marker[0]} 
+                                checked={marker[1].checked} onChange={(e) => setMaker(e, marker[0])}/>
                 </div>
               )}  
             </CardBody>
@@ -106,7 +137,9 @@ function App() {
           <Card>
             <CardHeader>Marked Text</CardHeader>
             <CardBody>
-              <Input type="textarea" value={markedText} readOnly style={{height : "20em"}}/>
+              {markedText.map((wordData) => 
+                <font color={wordData.color} style={{fontWeight : wordData.color == stdColor ? "normal" : "bold"}}>{wordData.word} </font>
+              )}
             </CardBody>
           </Card>
         </Col>

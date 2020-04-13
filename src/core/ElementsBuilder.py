@@ -14,7 +14,7 @@ class ElementsBuilder(Base):
         node = Search.find_dep_in_tree(full_sentence, node_index)
         full_noun = cls.get_full_noun(node, node_index, dependencies)
         if not WordNetWrapper.person_or_system(full_noun, node[0]):
-            if node.parent().label() == CD or WordNetWrapper.can_be_group_action(node[0]):
+            if node.label() == CD or WordNetWrapper.can_be_group_action(node[0]):
                 preps = Search.find_dependencies(dependencies, PREP)
                 for spec in preps:
                     if spec['spec'] in f_realActorPPIndicators and spec['governor'] == node_index:
@@ -86,7 +86,7 @@ class ElementsBuilder(Base):
             if dep['governor'] == node_index:
                 dep_in_tree = Search.find_dep_in_tree(full_sentence, dep['dependent'])
                 if dep['dep'] == DEP:
-                    if dep_in_tree.parent().label()[0] != "V" or dep['dependent'] < dep['governor']:
+                    if dep_in_tree.label()[0] != "V" or dep['dependent'] < dep['governor']:
                         continue
 
                 xcomp = cls.create_action(origin, full_sentence, dep['dependent'], dependencies, True)
@@ -284,7 +284,7 @@ class ElementsBuilder(Base):
                         phrase = specific + phrase
                     spec = Specifier(origin, dep['dependent'], phrase)
                     spec.f_type = PP
-                    if NP in dep_in_tree.parent().parent().label():
+                    if dep_in_tree.parent().label().startswith(NP):
                         obj = cls.create_object(origin, full_sentence, dep['dependent'], dependencies)
                         spec.f_object = obj
                     spec.f_headWord = specific

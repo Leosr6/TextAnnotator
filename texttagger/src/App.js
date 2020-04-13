@@ -4,17 +4,24 @@ import { Card, CardBody, CardFooter, CardHeader,
           Button, CustomInput } from 'reactstrap';
 import "./App.css";
 
-const precedence = ["startevent", "endevent", "activity", "xorjoin", "xorsplit"]
+const precedence = ["startevent", "endevent", "xorjoin", "andjoin", "orjoin", "xorsplit", "andsplit", "orsplit", "eventbasedgateway", "intermediateevent", "activity"]
 const stdColor = "black"
 
 function App() {
   const [text, setText] = useState("");
   const [markedText, setMarkedText] = useState([]);
   const [selectedMakers, setSelectedMarkers] = useState({
-    "activity" : {marker : "Activity", color : "red", checked : false},
-    "startevent" : {marker : "Start Event", color : "yellow", checked : false},
+    "activity" : {marker : "Activity", color : "blue", checked : false},
+    "startevent" : {marker : "Start Event", color : "lime", checked : false},
+    "endevent" : {marker : "End Event", color : "red", checked : false},
+    "intermediateevent" : {marker : "Intermediate Event", color : "orange", checked : false},
     "xorsplit" : {marker : "XOR-Split", color : "darkblue", checked : false},
-    "xorjoin" : {marker : "XOR-Join", color : "lightblue", checked : false}
+    "xorjoin" : {marker : "XOR-Join", color : "darkblue", checked : false},
+    "andsplit" : {marker : "AND-Split", color : "darkgreen", checked : false},
+    "andjoin" : {marker : "AND-JOIN", color : "darkgreen", checked : false},
+    "orsplit" : {marker : "OR-SPLIT", color : "chocolate", checked : false},
+    "orjoin" : {marker : "OR-JOIN", color : "chocolate", checked : false},
+    "eventbasedgateway" : {marker : "Event-based Gateway", color : "brown", checked : false}
   });
   const [useFile, setUseFile] = useState(false);
   const [disabledButton, setDisabledButton] = useState(false);
@@ -138,7 +145,7 @@ function App() {
             <CardHeader>Marked Text</CardHeader>
             <CardBody>
               {markedText.map((wordData) => 
-                <font color={wordData.color} style={{fontWeight : wordData.color == stdColor ? "normal" : "bold"}}>{wordData.word} </font>
+                <font color={wordData.color} style={{fontWeight : wordData.color === stdColor ? "normal" : "bold"}}>{wordData.word} </font>
               )}
             </CardBody>
           </Card>

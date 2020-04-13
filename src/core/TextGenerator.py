@@ -69,7 +69,7 @@ class TextGenerator(Base):
 
         for node, element in self.model_builder.node_element_map.items():
             if isinstance(node, FlowObject):
-                sentence = text.get(element.f_single.f_sentence) if isinstance(node, Gateway) else text.get(element.f_sentence)
+                sentence = text.get(element.f_sentence)
                 if sentence:
                     snippet = {
                         "startIndex": self.get_element_start_index(element),
@@ -104,17 +104,20 @@ class TextGenerator(Base):
         if isinstance(flow_object, Activity):
             element_type = "ACTIVITY"
         elif isinstance(flow_object, Gateway):
-            if flow_object.type in (EXCLUSIVE_GATEWAY, EVENT_BASED_GATEWAY):
+            if flow_object.type == EXCLUSIVE_GATEWAY:
                 element_type = "XORSPLIT" if element.f_direction == SPLIT else "XORJOIN"
             elif flow_object.type == PARALLEL_GATEWAY:
                 element_type = "ANDSPLIT" if element.f_direction == SPLIT else "ANDJOIN"
             elif flow_object.type == INCLUSIVE_GATEWAY:
                 element_type = "ORSPLIT" if element.f_direction == SPLIT else "ORJOIN"
+            elif flow_object.type == EVENT_BASED_GATEWAY:
+                element_type = EVENT_BASED_GATEWAY
             else:
                 element_type = flow_object.type
         elif isinstance(flow_object, Event):
             # TODO: check event sub_type
-            element_type = flow_object.class_sub_type + flow_object.class_type if flow_object.class_sub_type else flow_object.class_type
+            # element_type = flow_object.class_sub_type + flow_object.class_type if flow_object.class_sub_type else flow_object.class_type
+            element_type = flow_object.class_type
 
         return element_type.upper()
 
@@ -155,64 +158,66 @@ class TextGenerator(Base):
         candidates = []
 
         if isinstance(element, Flow):
-            candidates.append(self.get_element_start_index(element.f_single))
-            for multiple in element.f_multiples:
-                candidates.append(self.get_element_start_index(multiple))
+            if element.f_direction == SPLIT:
+                for multiple in element.f_multiples:
+                    if element.f_sentence == multiple.f_sentence:
+                        candidates.append(self.get_element_start_index(multiple))
+            else:
+                candidates.append(self.get_element_end_index(element))
         elif isinstance(element, DummyAction):
-            return 1
+            candidates.append(element.f_word_index)
         elif isinstance(element, Action):
             candidates.append(element.f_word_index)
 
             for spec in element.f_specifiers:
                 candidates.append(spec.f_word_index)
 
-            if isinstance(element, Action):
-                if element.f_aux:
-                    candidates[0] -= 1
+            if element.f_aux:
+                candidates[0] -= 1
 
-                if element.f_preAdvMod:
-                    candidates.append(element.f_preAdvModPos)
+            if element.f_preAdvMod:
+                candidates.append(element.f_preAdvModPos)
 
-                if element.f_object:
-                    candidates.append(element.f_object.f_word_index)
-                    if element.f_object.f_determiner:
-                        candidates[-1] -= 1
-                    for spec in element.f_object.f_specifiers:
-                        candidates.append(spec.f_word_index)
+            if element.f_object:
+                det = 1 if element.f_actorFrom.f_determiner else 0
+                candidates.append(element.f_object.f_word_index - det)
+                for spec in element.f_object.f_specifiers:
+                    candidates.append(spec.f_word_index - det)
 
-                if element.f_actorFrom:
-                    candidates.append(element.f_actorFrom.f_word_index)
-                    if element.f_actorFrom.f_determiner:
-                        candidates[-1] -= 1
-                    for spec in element.f_actorFrom.f_specifiers:
-                        candidates.append(spec.f_word_index)
+            if element.f_actorFrom:
+                det = 1 if element.f_actorFrom.f_determiner else 0
+                candidates.append(element.f_actorFrom.f_word_index - det)
+                for spec in element.f_actorFrom.f_specifiers:
+                    candidates.append(spec.f_word_index - det)
 
-        return min([candidate for candidate in candidates if candidate > 0])
+        return min([candidate for candidate in candidates if candidate > 0], default=1)
 
     def get_element_end_index(self, element):
         candidates = []
 
         if isinstance(element, Flow):
-            candidates.append(self.get_element_end_index(element.f_single))
             for multiple in element.f_multiples:
-                candidates.append(self.get_element_end_index(multiple))
+                if element.f_sentence == multiple.f_sentence:
+                    candidates.append(self.get_element_end_index(multiple))
         elif isinstance(element, DummyAction):
-            return 1
+            candidates.append(element.f_word_index)
         elif isinstance(element, Action):
             candidates.append(element.f_word_index)
 
             for spec in element.f_specifiers:
                 candidates.append(spec.f_word_index + spec.f_name.count(" "))
 
-            if isinstance(element, Action):
-                if element.f_object:
-                    candidates.append(element.f_object.f_word_index + element.f_object.f_name.count(" "))
-                    for spec in element.f_object.f_specifiers:
-                        candidates.append(spec.f_word_index + spec.f_name.count(" "))
+            if element.f_object:
+                candidates.append(element.f_object.f_word_index + element.f_object.f_name.count(" "))
+                for spec in element.f_object.f_specifiers:
+                    candidates.append(spec.f_word_index + spec.f_name.count(" "))
 
-                if element.f_actorFrom:
-                    candidates.append(element.f_actorFrom.f_word_index + element.f_actorFrom.f_name.count(" "))
-                    for spec in element.f_actorFrom.f_specifiers:
-                        candidates.append(spec.f_word_index + spec.f_name.count(" "))
+            if element.f_actorFrom:
+                candidates.append(element.f_actorFrom.f_word_index + element.f_actorFrom.f_name.count(" "))
+                for spec in element.f_actorFrom.f_specifiers:
+                    candidates.append(spec.f_word_index + spec.f_name.count(" "))
 
-        return max(candidates)
+            if element.f_xcomp:
+                candidates.append(self.get_element_end_index(element.f_xcomp))
+
+        return max(candidates, default=1)

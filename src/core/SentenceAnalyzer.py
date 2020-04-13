@@ -310,7 +310,7 @@ class SentenceAnalyzer(Base):
         objects = []
 
         if verb.f_xcomp:
-            xcomp_ojb = self.determine_object_from_dobj(verb, dependencies)
+            xcomp_ojb = self.determine_object(sentence, verb.f_xcomp, dependencies, active)
             if len(xcomp_ojb) > 0:
                 verb.f_xcomp.f_object = xcomp_ojb[0]
 
@@ -376,7 +376,7 @@ class SentenceAnalyzer(Base):
                 else:
                     dep_index = cops[0]['governor']
                     dep_in_tree = Search.find_dep_in_tree(self.f_full_sentence, dep_index)
-                    if dep_in_tree.parent().parent().label() == NP:
+                    if dep_in_tree.parent().label() == NP:
                         obj = Builder.create_object(self.f_stanford_sentence, self.f_full_sentence, dep_index, dependencies)
                         objects.append(obj)
                         self.check_np_sub_sentences(dep_index, dependencies, obj)
@@ -388,7 +388,7 @@ class SentenceAnalyzer(Base):
             else:
                 dep_index = preps_filtered[0]['dependent']
                 dep_in_tree = Search.find_dep_in_tree(self.f_full_sentence, dep_index)
-                if dep_in_tree.parent().parent().label() == NP:
+                if dep_in_tree.parent().label() == NP:
                     obj = Builder.create_object(self.f_stanford_sentence, self.f_full_sentence, dep_index, dependencies)
                     objects.append(obj)
                     self.check_np_sub_sentences(dep_index, dependencies, obj)

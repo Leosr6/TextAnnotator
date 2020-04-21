@@ -274,22 +274,23 @@ class ElementsBuilder(Base):
             if (dep['governor'] == node_index or dep['governorGloss'] == cop) and not cls.part_rc_mod(full_sentence, rc_mod, dep):
                 dep_in_tree = Search.find_dep_in_tree(full_sentence, dep['dependent'])
                 phrase_tree = Search.get_full_phrase_tree(dep_in_tree, PP)
-                # TODO: check print
-                phrase = " ".join(phrase_tree.leaves())
-                space_index = phrase.index(" ")
-                if space_index >= 0:
-                    specific = dep['spec']
-                    if specific:
-                        phrase = phrase[space_index:]
-                        phrase = specific + phrase
-                    spec = Specifier(origin, dep['dependent'], phrase)
-                    spec.f_type = PP
-                    if dep_in_tree.parent().label().startswith(NP):
-                        obj = cls.create_object(origin, full_sentence, dep['dependent'], dependencies)
-                        spec.f_object = obj
-                    spec.f_headWord = specific
-                    # TODO: FrameNetWrapper.determineSpecifierFrameElement(element, _sp);
-                    element.f_specifiers.append(spec)
+                if phrase_tree:
+                    # TODO: check print
+                    phrase = " ".join(phrase_tree.leaves())
+                    space_index = phrase.index(" ")
+                    if space_index >= 0:
+                        specific = dep['spec']
+                        if specific:
+                            phrase = phrase[space_index:]
+                            phrase = specific + phrase
+                        spec = Specifier(origin, dep['dependent'], phrase)
+                        spec.f_type = PP
+                        if dep_in_tree.parent().label().startswith(NP):
+                            obj = cls.create_object(origin, full_sentence, dep['dependent'], dependencies)
+                            spec.f_object = obj
+                        spec.f_headWord = specific
+                        # TODO: FrameNetWrapper.determineSpecifierFrameElement(element, _sp);
+                        element.f_specifiers.append(spec)
 
     @classmethod
     def extract_RCMOD_spec(cls, origin, full_sentence, element, node_index, dependencies):

@@ -1,8 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardBody, CardFooter, CardHeader,
-          Col, Form, FormGroup, Input, Label, Row,
-          Button, CustomInput } from 'reactstrap';
+          Col, Nav, NavItem, Input, NavLink,
+          Button, CustomInput, TabContent, TabPane } from 'reactstrap';
+import Dropzone from './Dropzone'
 import "./App.css";
+import { Icon } from '@iconify/react';
+import arrowBackCircleOutline from '@iconify/icons-ion/arrow-back-circle-outline';
+import classnames from 'classnames';
 
 const precedence = ["startevent", "endevent", "xorjoin", "andjoin", "orjoin", "xorsplit", "andsplit", "orsplit", "eventbasedgateway", "intermediateevent", "activity"]
 const stdColor = "black"
@@ -23,10 +27,12 @@ function App() {
     "orjoin" : {marker : "OR-JOIN", color : "chocolate", checked : false},
     "eventbasedgateway" : {marker : "Event-based Gateway", color : "brown", checked : false}
   });
-  const [useFile, setUseFile] = useState(false);
   const [disabledButton, setDisabledButton] = useState(false);
   const [metadata, setMetadata] = useState({});
-  const textFile = useRef();
+  const [activeTab, setActiveTab] = useState("2");
+  const [inputTab, setInputTab] = useState("1-a");
+  const [textFile, setTextFile] = useState(null);
+  const [actors, setActors] = useState([]);
 
   useEffect(() => {
     var text = [];
@@ -37,10 +43,11 @@ function App() {
 
         for (var snippet of sentence.snippetList.values()) {
           var elementType = snippet.processElementType.toLowerCase();
+          var actor = sentence.processList[0].resourceList.find((resource) => snippet.resourceId === resource.id)
           var markerData = selectedMakers[elementType];
 
           if (markerData && markerData.checked) {
-            for (var wordIndex = snippet.startIndex; wordIndex <= snippet.endIndex; wordIndex++) {
+            for (var wordIndex = snippet.startIndex -1; wordIndex <= snippet.endIndex -1; wordIndex++) {
               var currentMap = typeMap[wordIndex];
               if (!currentMap || precedence.indexOf(currentMap) > precedence.indexOf(elementType))
                 typeMap[wordIndex] = elementType;
@@ -69,13 +76,15 @@ function App() {
 
   const onClickMarkText = () => {
     var data = new FormData()
+    const useFile = inputTab === "1-b"
+
     if (useFile) {
-      if (!textFile.current || textFile.current.files.length === 0) {
-        alert("Please select a file or switch to use a text.");
-        return;
+      if (textFile) {
+        data.append('file', textFile)
       }
       else {
-        data.append('file', textFile.current.files[0])
+        alert("Please select a file or switch to use a text.");
+        return;
       }
     }
     else if (text.length === 0) {
@@ -93,8 +102,10 @@ function App() {
       body: useFile ? data : text,
     })
     .then(response => {
-      if (response.ok)
+      if (response.ok) {
         response.json().then(json => setMetadata(json))
+        setActiveTab("2")
+      }
       else
         alert("Could not get a valid response from the server")
     })
@@ -102,55 +113,85 @@ function App() {
     .finally(() => setDisabledButton(false));
   }
 
+  const handleDropAccepted = (files) => {
+    setTextFile(files[0]);
+  }
+
   return (
     <div className="App">
-      <Row className="w-100 d-flex justify-content-center">
-        <Card className="w-75 mt-3">
-          <CardHeader>Write any process model or upload a text file</CardHeader>
-          <CardBody className="ml-3">
-            <Form>
-              <FormGroup row>
-                <Label for="text">Text Input</Label>
-                <Input type="textarea" id="text" value={text} onChange={(e) => setText(e.target.value)}/>
-              </FormGroup>
-              <FormGroup row>
-                <Label for="file">Upload File</Label>
-                <Input type="file" id="file" innerRef={textFile} />
-              </FormGroup>
-            </Form>
-          </CardBody>
-          <CardFooter className="d-flex">
-            <Button color="primary" onClick={onClickMarkText} disabled={disabledButton}>Mark Text</Button>
-            <CustomInput type="switch" label="Use file" id="usefile" checked={useFile} onChange={(e) => setUseFile(e.target.checked)} className="ml-auto"/>
-          </CardFooter>
-        </Card>
-      </Row>
-      <div className="d-flex mt-3">
-        <Col xs="3">
-          <Card>
-            <CardHeader>Markers</CardHeader>
-            <CardBody>
-              {Object.entries(selectedMakers).map((marker) =>
-                <div className="d-flex">
-                  <div className="colorbox" style={{backgroundColor : marker[1].color}}/>
-                  <CustomInput type="switch" label={marker[1].marker} id={marker[0]} 
-                                checked={marker[1].checked} onChange={(e) => setMaker(e, marker[0])}/>
-                </div>
-              )}  
-            </CardBody>
-          </Card>
-        </Col>
-        <Col xs="9" className="">
-          <Card>
-            <CardHeader>Marked Text</CardHeader>
-            <CardBody>
-              {markedText.map((wordData) => 
-                <font color={wordData.color} style={{fontWeight : wordData.color === stdColor ? "normal" : "bold"}}>{wordData.word} </font>
-              )}
-            </CardBody>
-          </Card>
-        </Col>
-      </div>
+      <TabContent activeTab={activeTab} className="h-100">
+        <TabPane tabId="1" className="h-100">
+            <div className="h-100 d-flex justify-content-center" style={{paddingTop : "5%"}}>
+              <Card className="w-75" style={{height : "85%"}}>
+                <CardHeader>Write any process model or upload a text file</CardHeader>
+                <CardBody className="ml-3">
+                  <Nav tabs>
+                    <NavItem>
+                      <NavLink className={classnames({ active: inputTab === '1-a' })} onClick={() => { setInputTab('1-a'); }}>
+                        Text Input
+                      </NavLink>
+                    </NavItem>
+                    <NavItem>
+                      <NavLink className={classnames({ active: inputTab === '1-b' })} onClick={() => { setInputTab('1-b'); }}>
+                        File Input
+                      </NavLink>
+                    </NavItem>
+                  </Nav>
+                  <TabContent activeTab={inputTab} style={{height : "85%", marginTop : "1em"}}>
+                    <TabPane tabId="1-a" className="h-100">
+                      <Input type="textarea" className="h-100" id="text" value={text} onChange={(e) => setText(e.target.value)}/>
+                    </TabPane>
+                    <TabPane tabId="1-b" className="h-100">
+                      <Dropzone handleDropAccepted={handleDropAccepted}/>
+                    </TabPane>
+                  </TabContent>
+                </CardBody>
+                <CardFooter className="d-flex">
+                  <Button color="primary" onClick={onClickMarkText} disabled={disabledButton}>Mark Text</Button>
+                </CardFooter>
+              </Card>
+            </div>
+        </TabPane>
+        <TabPane tabId="2" className="h-100">
+          <div className="h-100 d-flex justify-content-center" style={{paddingTop : "5%"}}>
+            <Col xs="3">
+              <Card>
+                <CardHeader>Markers</CardHeader>
+                <CardBody>
+                  {Object.entries(selectedMakers).map((marker) =>
+                    <div className="d-flex">
+                      <div className="colorbox" style={{backgroundColor : marker[1].color}}/>
+                      <CustomInput type="switch" label={marker[1].marker} id={marker[0]} 
+                                    checked={marker[1].checked} onChange={(e) => setMaker(e, marker[0])}/>
+                    </div>
+                  )}  
+                </CardBody>
+              </Card>
+              <Card className="mt-3">
+                <CardHeader>Actors</CardHeader>
+                <CardBody>
+                </CardBody>
+              </Card>
+            </Col>
+            <Col xs="8" className="">
+              <Card>
+                <CardHeader>Marked Text</CardHeader>
+                <CardBody>
+                  {markedText.map((wordData, index) =>
+                    <font key={index} color={wordData.color} style={{fontWeight : wordData.color === stdColor ? "normal" : "bold"}}>{wordData.word} </font>
+                  )}
+                </CardBody>
+                <CardFooter>
+                  <Button outline color="primary" size="sm" onClick={() => setActiveTab("1")}>
+                    <Icon icon={arrowBackCircleOutline} width="20" height="20" className="mr-2"/>
+                    Change Text
+                  </Button>
+                </CardFooter>
+              </Card>
+            </Col>
+          </div>
+        </TabPane>
+      </TabContent>
     </div>
   );
 }

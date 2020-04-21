@@ -9,6 +9,7 @@
     "bootstrap": "^4.4.1",
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
+    "react-dropzone": "^10.2.2",
     "react-scripts": "3.4.1",
     "reactstrap": "^8.4.1"
   },
@@ -32,5 +33,9 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "@iconify/icons-ion": "^1.0.11",
+    "@iconify/react": "^1.1.3"
   }
 }

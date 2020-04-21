@@ -44,7 +44,7 @@ def TextReaderService():
     file = request.files.get("file")
     if file and allowed_file(file.filename):
         text = file.read().decode("utf-8")
-    elif request.content_type == "text/plain":
+    elif "text" in request.content_type:
         text = request.get_data(as_text=True)
 
     if text:

@@ -8,6 +8,7 @@
     "@testing-library/user-event": "^7.2.1",
     "bootstrap": "^4.4.1",
     "react": "^16.13.1",
+    "react-color": "^2.18.0",
     "react-dom": "^16.13.1",
     "react-dropzone": "^10.2.2",
     "react-scripts": "3.4.1",
@@ -35,6 +36,7 @@
     ]
   },
   "devDependencies": {
+    "@iconify/icons-bpmn": "^1.0.6",
     "@iconify/icons-ion": "^1.0.11",
     "@iconify/react": "^1.1.3"
   }

@@ -46,9 +46,10 @@ class Specifier(Element):
 
 class Action(Element):
 
-    def __init__(self, sentence, index, word):
+    def __init__(self, sentence, index, word, label):
         super().__init__(sentence, index, word)
         self.f_baseForm = WordNetWrapper.get_base_form(word)
+        self.label = label
         self.f_actorFrom = None
         self.f_object = None
         self.f_xcomp = None
@@ -60,6 +61,7 @@ class Action(Element):
         self.f_modPos = -1
         self.f_marker = None
         self.f_markerFromPP = False
+        self.f_markerPos = -1
         self.f_preAdvMod = None
         self.f_preAdvModPos = -1
         self.f_prepc = None

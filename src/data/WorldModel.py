@@ -48,4 +48,5 @@ class WorldModel:
 
     def switch_actions(self, action, previous_action):
         index1, index2 = self.f_actions.index(action), self.f_actions.index(previous_action)
-        self.f_actions[index1] = previous_action, self.f_actions[index2] = action
+        self.f_actions[index1] = previous_action
+        self.f_actions[index2] = action

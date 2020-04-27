@@ -34,8 +34,8 @@ class TextGenerator(Base):
                 self.process_id_map[node] = "id-{}".format(process_id)
                 process_id += 1
 
-        for node in self.model_builder.node_element_map.keys():
-            if not isinstance(node, SequenceFlow):
+        for node in self.model_builder.f_model.nodes:
+            if isinstance(node, FlowObject) or isinstance(node, Lane):
                 self.element_id_map[node] = "id-{}".format(element_id)
                 element_id += 1
 
@@ -67,7 +67,13 @@ class TextGenerator(Base):
                 "newSplitPath": False
             }
 
-        for node, element in self.model_builder.node_element_map.items():
+        nodes = set()
+        for node in self.model_builder.f_model.edges:
+            nodes.add(node.source)
+            nodes.add(node.target)
+
+        for node in nodes:
+            element = node.element
             if isinstance(node, FlowObject):
                 sentence = text.get(element.f_sentence)
                 if sentence:
@@ -101,7 +107,9 @@ class TextGenerator(Base):
     def get_element_type(element, flow_object):
         element_type = ""
 
-        if isinstance(flow_object, Activity):
+        if isinstance(flow_object, Task):
+            element_type = "TASK"
+        elif isinstance(flow_object, Activity):
             element_type = "ACTIVITY"
         elif isinstance(flow_object, Gateway):
             if flow_object.type == EXCLUSIVE_GATEWAY:
@@ -116,8 +124,8 @@ class TextGenerator(Base):
                 element_type = flow_object.type
         elif isinstance(flow_object, Event):
             # TODO: check event sub_type
-            # element_type = flow_object.class_sub_type + flow_object.class_type if flow_object.class_sub_type else flow_object.class_type
-            element_type = flow_object.class_type
+            element_type = flow_object.class_sub_type + flow_object.class_type if flow_object.class_sub_type else flow_object.class_type
+            # element_type = flow_object.class_type
 
         return element_type.upper()
 
@@ -135,12 +143,12 @@ class TextGenerator(Base):
         keep_searching = True
 
         # Corner case when the flow_object is a Split Gateway
-        if isinstance(source, Gateway) and self.model_builder.node_element_map[source].f_direction == SPLIT:
+        if isinstance(source, Gateway) and source.element.f_direction == SPLIT:
             level = -1
 
         while keep_searching:
             if isinstance(source, Gateway):
-                if self.model_builder.node_element_map[source].f_direction == SPLIT:
+                if source.element.f_direction == SPLIT:
                     level += 1
                 else:
                     level -= 1
@@ -162,6 +170,10 @@ class TextGenerator(Base):
                 for multiple in element.f_multiples:
                     if element.f_sentence == multiple.f_sentence:
                         candidates.append(self.get_element_start_index(multiple))
+                        if multiple.f_markerPos > 0:
+                            candidates.append(multiple.f_markerPos)
+                        if multiple.f_preAdvModPos > 0:
+                            candidates.append(multiple.f_preAdvModPos)
             else:
                 candidates.append(self.get_element_end_index(element))
         elif isinstance(element, DummyAction):
@@ -169,25 +181,13 @@ class TextGenerator(Base):
         elif isinstance(element, Action):
             candidates.append(element.f_word_index)
 
-            for spec in element.f_specifiers:
-                candidates.append(spec.f_word_index)
-
             if element.f_aux:
                 candidates[0] -= 1
 
-            if element.f_preAdvMod:
-                candidates.append(element.f_preAdvModPos)
-
             if element.f_object:
-                det = 1 if element.f_actorFrom.f_determiner else 0
+                det = 1 if element.f_object.f_determiner else 0
                 candidates.append(element.f_object.f_word_index - det)
                 for spec in element.f_object.f_specifiers:
-                    candidates.append(spec.f_word_index - det)
-
-            if element.f_actorFrom:
-                det = 1 if element.f_actorFrom.f_determiner else 0
-                candidates.append(element.f_actorFrom.f_word_index - det)
-                for spec in element.f_actorFrom.f_specifiers:
                     candidates.append(spec.f_word_index - det)
 
         return min([candidate for candidate in candidates if candidate > 0], default=1)
@@ -196,9 +196,12 @@ class TextGenerator(Base):
         candidates = []
 
         if isinstance(element, Flow):
-            for multiple in element.f_multiples:
-                if element.f_sentence == multiple.f_sentence:
-                    candidates.append(self.get_element_end_index(multiple))
+            if element.f_direction == JOIN:
+                for multiple in element.f_multiples:
+                    if element.f_sentence == multiple.f_sentence:
+                        candidates.append(self.get_element_end_index(multiple))
+            else:
+                candidates.append(self.get_element_start_index(element))
         elif isinstance(element, DummyAction):
             candidates.append(element.f_word_index)
         elif isinstance(element, Action):
@@ -209,15 +212,10 @@ class TextGenerator(Base):
 
             if element.f_object:
                 candidates.append(element.f_object.f_word_index + element.f_object.f_name.count(" "))
-                for spec in element.f_object.f_specifiers:
-                    candidates.append(spec.f_word_index + spec.f_name.count(" "))
+                # for spec in element.f_object.f_specifiers:
+                #     candidates.append(spec.f_word_index + spec.f_name.count(" "))
 
-            if element.f_actorFrom:
-                candidates.append(element.f_actorFrom.f_word_index + element.f_actorFrom.f_name.count(" "))
-                for spec in element.f_actorFrom.f_specifiers:
-                    candidates.append(spec.f_word_index + spec.f_name.count(" "))
-
-            if element.f_xcomp:
-                candidates.append(self.get_element_end_index(element.f_xcomp))
+            # if element.f_xcomp:
+            #     candidates.append(self.get_element_end_index(element.f_xcomp))
 
         return max(candidates, default=1)

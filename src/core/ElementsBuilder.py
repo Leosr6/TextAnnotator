@@ -46,7 +46,7 @@ class ElementsBuilder(Base):
     @classmethod
     def create_action(cls, origin, full_sentence, node_index, dependencies, active):
         node = Search.find_dep_in_tree(full_sentence, node_index)
-        action = Action(origin, node_index, node[0])
+        action = Action(origin, node_index, node[0], node.label())
 
         aux = cls.get_auxiliars(node_index, dependencies)
         if len(aux) > 0:
@@ -125,7 +125,7 @@ class ElementsBuilder(Base):
         # else:
         index = Search.find_sentence_index(full_sentence, vphead)
 
-        action = Action(origin, index, " ".join(verb_parts))
+        action = Action(origin, index, " ".join(verb_parts), vphead.label())
         cls.extract_SBAR_spec(origin, full_sentence, action, vphead)
         cls.extract_PP_spec_syntax(origin, full_sentence, action, vphead)
 

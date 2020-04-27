@@ -94,6 +94,7 @@ class TextAnalyzer(Base):
                     value = dep['dependentGloss']
                     self.logger.debug("Marking {} with marker {}".format(action, value))
                     action.f_marker = value
+                    action.f_markerPos = dep['dependent']
 
             markers = Search.find_dependencies(deps, ADVMOD)
             for dep in markers:
@@ -102,6 +103,7 @@ class TextAnalyzer(Base):
                     value = dep['dependentGloss']
                     if value in f_parallelIndicators:
                         action.f_marker = WHILE
+                        action.f_markerPos = dep['dependent']
                     elif value != ALSO:
                         self.logger.debug("Marking {} with advmod {}".format(action, value))
                         action.f_preAdvMod = value
@@ -125,6 +127,7 @@ class TextAnalyzer(Base):
                             value = IFCOMPLM
                         self.logger.debug("Marking {} with marker-complm {}".format(action, value))
                         action.f_marker = value
+                        action.f_markerPos = dep['dependent']
 
         for analyzed_sentence in self.f_analyzed_sentences:
             stanford_sentence = analyzed_sentence.f_sentence
@@ -149,7 +152,7 @@ class TextAnalyzer(Base):
 
                     if spec.f_name in f_parallelIndicators and not action.f_marker:
                         self.logger.debug("Marking {} with marker {} while".format(action, spec.f_name))
-                        action.f_maker = WHILE
+                        action.f_marker = WHILE
 
         for analyzed_sentence in self.f_analyzed_sentences:
             stanford_sentence = analyzed_sentence.f_sentence
@@ -250,9 +253,9 @@ class TextAnalyzer(Base):
                     else:
                         if len(came_from) > 0:
                             flow.f_single = came_from[0]
-                        if conj_type in (OR, ANDOR) or Processing.has_frequency_attached(conjoined[0]):
+                        if conj_type in (OR, XOR) or Processing.has_frequency_attached(conjoined[0]):
                             self.create_dummy_node(came_from, flow)
-                            flow_type = MULTIPLE_CHOICE if conj_type == ANDOR else CHOICE
+                            flow_type = MULTIPLE_CHOICE if conj_type == OR else CHOICE
                             self.build_gateway(came_from, open_split, stanford_sentence, processed, flow, conjoined, flow_type)
                         elif conj_type == AND:
                             if conj_status == ACTOR_SUBJECT:
@@ -547,6 +550,15 @@ class TextAnalyzer(Base):
         if len(came_from) == 0:
             self.create_dummy_node(came_from, flow)
         if len(came_from) >= 1:
+            last_flow_added = self.f_world.f_lastFlowAdded
+
+            if last_flow_added:
+                if action.f_marker == WHILE or last_flow_added.f_type == CONCURRENCY:
+                    if last_flow_added.f_multiples[0].f_sentence == action.f_sentence:
+                        last_flow_added.f_multiples.append(action)
+                        last_flow_added.f_type = CONCURRENCY
+                        came_from.append(action)
+
             if len(came_from) > 1:
                 dummy_flow = Flow(stanford_sentence)
                 dummy_action = DummyAction(action)
@@ -554,13 +566,8 @@ class TextAnalyzer(Base):
                 self.build_join(dummy_flow, came_from, dummy_action)
                 self.clear_split(open_split)
                 self.f_world.add_flow(dummy_flow)
-            if action.f_marker == WHILE:
-                if self.f_world.f_lastFlowAdded:
-                    self.f_world.f_lastFlowAdded.f_multiples.append(action)
-                    self.f_world.f_lastFlowAdded.f_type = CONCURRENCY
-                    came_from.append(action)
-                    return
-            elif action.f_marker in (WHEREAS, IF) or action.f_preAdvMod == OTHERWISE:
+
+            if action.f_marker in (WHEREAS, IF) or action.f_preAdvMod == OTHERWISE:
                 if action.f_prepc == EXCEPT:
                     flow.f_type = EXCEPTION
                     self.clear_split(open_split)

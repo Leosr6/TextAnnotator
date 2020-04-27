@@ -55,12 +55,12 @@ class SentenceAnalyzer(Base):
                                                              dependencies)
             self.analyze_recursive(sub_sentence, filtered_dependencies)
 
-            main_sentence_copy = deepcopy(main_sentence)
-            sub_sentence_index = sub_sentence.treeposition()[-1]
-            del(main_sentence_copy[sub_sentence_index])
+            sentence_copy = deepcopy(self.f_full_sentence)
+            sub_sentence_index = sub_sentence.treeposition()
+            del(sentence_copy[sub_sentence_index])
             deps = [dep for dep in dependencies if dep['dep'] == RCMOD or dep not in filtered_dependencies]
             if len(Search.find_dependencies(deps, (NSUBJ, AGENT, NSUBJPASS, DOBJ))) > 0:
-                self.extract_elements(main_sentence_copy, deps)
+                self.extract_elements(sentence_copy[0], deps)
 
         else:
             sub_sentences = self.find_sub_sentences(main_sentence)
@@ -310,9 +310,9 @@ class SentenceAnalyzer(Base):
         objects = []
 
         if verb.f_xcomp:
-            xcomp_ojb = self.determine_object(sentence, verb.f_xcomp, dependencies, active)
-            if len(xcomp_ojb) > 0:
-                verb.f_xcomp.f_object = xcomp_ojb[0]
+            xcomp_obj = self.determine_object(sentence, verb.f_xcomp, dependencies, active)
+            if len(xcomp_obj) > 0:
+                verb.f_xcomp.f_object = xcomp_obj[0]
 
         if not active:
             nsubjpass = Search.find_dependencies(dependencies, NSUBJPASS)
@@ -505,7 +505,7 @@ class SentenceAnalyzer(Base):
 
     def check_sub_sentences(self, head, dependencies, obj, is_np):
 
-        if head.label() in self.f_sentenceTags:
+        if head.label() == SBAR:
             leaves = head.leaves()
             start_index = Search.find_sentence_index(self.f_full_sentence, head)
             end_index = start_index + len(leaves)
@@ -521,10 +521,12 @@ class SentenceAnalyzer(Base):
             action = obj if isinstance(obj, Action) else None
             if not action or not action.f_xcomp or start_index > action.f_xcomp.f_word_index or end_index < action.f_xcomp.f_word_index:
                 self.analyze_recursive(head, self.filter_dependencies(head, dependencies))
-        else:
-            if head.label() in (PP, VP) or (head.label() == NP and is_np):
-                for child in head:
-                    self.check_sub_sentences(child, dependencies, obj, is_np)
+                return
+
+        #if head.label() in (PP, VP) or (head.label() == NP and is_np):
+        for child in head:
+            if not isinstance(child, str):
+                self.check_sub_sentences(child, dependencies, obj, is_np)
 
     @staticmethod
     def remove_examples(verbs):
@@ -538,12 +540,20 @@ class SentenceAnalyzer(Base):
 
     def build_link(self, element, dep, new_ele):
         conjunction = None
-        conj_type = dep['spec']
+        conj_type = None
+        conj_spec = dep['spec']
 
-        if conj_type in (OR, AND, ANDOR):
-            conjunction = ConjunctionElement(element, new_ele, conj_type)
-        elif conj_type != BUT:
+        if conj_spec == OR:
+            conj_type = XOR
+        elif conj_spec == AND:
+            conj_type = AND
+        elif conj_spec == ANDOR:
+            conj_type = OR
+        elif conj_spec != BUT:
             self.logger.error("Undefined conjunction relation {}".format(conj_type))
+
+        if conj_type:
+            conjunction = ConjunctionElement(element, new_ele, conj_type)
 
         if conjunction:
             self.f_analyzed_sentence.f_conjs.append(conjunction)

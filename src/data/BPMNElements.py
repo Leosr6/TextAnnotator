@@ -31,6 +31,7 @@ class ProcessModel:
     - SequenceFlow (edge)
     - FlowObject (node)
         - Activity
+            - Task
         - Event
         - Gateway
     - Cluster
@@ -48,14 +49,15 @@ class SequenceFlow:
 
 class FlowObject:
 
-    def __init__(self):
-        self.text = ""
+    def __init__(self, element):
+        self.element = element
 
 
 class Cluster:
 
-    def __init__(self, name=None, pool=None):
+    def __init__(self, actor=None, name=None, pool=None):
         self.process_nodes = []
+        self.actor = actor
         self.name = name
         self.pool = pool
 
@@ -70,8 +72,8 @@ class Pool(Cluster):
 
 class Event(FlowObject):
 
-    def __init__(self, event_type=None, sub_type=None):
-        super().__init__()
+    def __init__(self, element, event_type=None, sub_type=None):
+        super().__init__(element)
         self.class_type = event_type
         self.class_sub_type = sub_type
         self.parent_node = None
@@ -80,10 +82,14 @@ class Event(FlowObject):
 
 class Gateway(FlowObject):
 
-    def __init__(self, gateway_type=None):
-        super().__init__()
-        self.type = gateway_type
+    def __init__(self, element):
+        super().__init__(element)
+        self.type = None
 
 
 class Activity(FlowObject):
+    pass
+
+
+class Task(Activity):
     pass

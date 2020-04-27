@@ -71,6 +71,8 @@ PP = "PP"
 ADVP = "ADVP"
 CD = "CD"
 IOBJ = "IOBJ"
+VBN = "VBN"
+VB = "VB"
 
 """
     TODO: write description
@@ -91,6 +93,7 @@ THAT = "that"
 OR = "or"
 AND = "and"
 ANDOR = "and/or"
+XOR = "xor"
 BUT = "but"
 TO = "to"
 NO = "no"
@@ -211,7 +214,7 @@ f_personCorrectorList = ["resource provisioning", "customer service", "support",
                          "master", "masters", "assembler ag", "acme ag", "acme financial accounting", "secretarial office", "office", "registry",
                          "head", "storehouse", "atm", "crs", "company", "garage", "kitchen", "department", "ec", "sp", "mpo", "mpoo", "mpon", "msp"
                          "mspo", "mspn", "go", "pu", "ip", "inq", "sp\\/pu\\/go", "fault detector"]
-f_realActorDeterminers = ["person", "social group", "software system"]
+f_realActorDeterminers = ["person", "social_group", "software_system"]
 f_metaActorsDeterminers = ["step", "process", "case", "state"]
 f_weakVerbs = ["be", "have", "do", "achieve", "start", "exist", "base"]
 f_acceptedAMODforLoops = ["next", "back", "again"]

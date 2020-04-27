@@ -19,7 +19,6 @@ class ProcessModelBuilder(Base):
         self.f_main_pool = None
         self.f_not_assigned = []
         self.f_last_pool = None
-        self.node_element_map = {}
 
     def create_process_model(self):
         self.f_main_pool = Pool("Pool")
@@ -29,7 +28,7 @@ class ProcessModelBuilder(Base):
         self.build_sequence_flows()
         self.remove_dummies()
         self.finish_dangling_ends()
-        self.process_meta_activities()
+        # self.process_meta_activities()
 
         if len(self.f_main_pool.process_nodes) == 0:
             self.f_model.remove_node(self.f_main_pool)
@@ -42,18 +41,18 @@ class ProcessModelBuilder(Base):
 
     def create_actions(self):
         for action in self.f_world.f_actions:
-            if action.f_marker != IF and not action.f_markerFromPP:
-                flow_object = self.create_task(action)
-            else:
+            # Past participle indicates an event
+            if self.is_event_action(action) or action.f_marker == IF or action.f_markerFromPP:
                 flow_object = self.create_event_node(action)
-                self.f_model.nodes.append(flow_object)
-                self.node_element_map[flow_object] = action
-                flow_object.text = self.get_event_text(action) + " " + flow_object.text
+            else:
+                flow_object = self.create_activity(action)
 
+            self.f_model.nodes.append(flow_object)
             self.f_action_flow_map[action] = flow_object
+            self.f_flow_action_map[flow_object] = action
+
             if action.f_xcomp:
                 self.f_action_flow_map[action.f_xcomp] = flow_object
-            self.f_flow_action_map[flow_object] = action
 
             lane = None
             if not WordNetWrapper.is_weak_action(action) and action.f_actorFrom:
@@ -77,11 +76,9 @@ class ProcessModelBuilder(Base):
                 sequence_flow = SequenceFlow(self.to_process_node(flow.f_single),
                                              self.to_process_node(flow.f_multiples[0]))
                 self.f_model.edges.append(sequence_flow)
-                self.node_element_map[sequence_flow] = flow
             elif flow.f_type == EXCEPTION:
-                exception_event = Event(INTERMEDIATE_EVENT, ERROR_EVENT)
+                exception_event = Event(flow.f_single, INTERMEDIATE_EVENT, ERROR_EVENT)
                 self.f_model.nodes.append(exception_event)
-                self.node_element_map[exception_event] = flow
                 task = self.to_process_node(flow.f_single)
                 exception_event.parent_node = task
                 self.add_to_same_lane(task, exception_event)
@@ -89,31 +86,33 @@ class ProcessModelBuilder(Base):
                 sequence_flow = SequenceFlow(exception_event,
                                              self.to_process_node(flow.f_multiples[0]))
                 self.f_model.edges.append(sequence_flow)
-                self.node_element_map[sequence_flow] = flow
             elif flow.f_direction == SPLIT:
-                gateway = self.create_gateway(flow)
-                sequence_flow = SequenceFlow(self.to_process_node(flow.f_single), gateway)
+                if len(flow.f_multiples) == 1:
+                    event = self.to_process_node(flow.f_multiples[0])
+                    event.class_sub_type = CONDITIONAL_EVENT
+                    self.add_to_prevalent_lane(flow, event)
+                    sequence_flow = SequenceFlow(self.to_process_node(flow.f_single), event)
+                else:
+                    gateway = self.create_gateway(flow)
+                    self.add_to_prevalent_lane(flow, gateway)
+                    sequence_flow = SequenceFlow(self.to_process_node(flow.f_single), gateway)
+                    for action in flow.f_multiples:
+                        internal_flow = SequenceFlow(gateway, self.to_process_node(action))
+                        self.f_model.edges.append(internal_flow)
                 self.f_model.edges.append(sequence_flow)
-                self.node_element_map[sequence_flow] = flow
-                self.add_to_prevalent_lane(flow, gateway)
-                for action in flow.f_multiples:
-                    internal_flow = SequenceFlow(gateway, self.to_process_node(action))
-                    self.f_model.edges.append(internal_flow)
-                    self.node_element_map[internal_flow] = flow
             elif flow.f_direction == JOIN:
-                gateway = self.create_gateway(flow)
-                sequence_flow = SequenceFlow(gateway, self.to_process_node(flow.f_single))
-                self.f_model.edges.append(sequence_flow)
-                self.node_element_map[sequence_flow] = flow
-                self.add_to_prevalent_lane(flow, gateway)
-                for action in flow.f_multiples:
-                    internal_flow = SequenceFlow(self.to_process_node(action), gateway)
-                    self.f_model.edges.append(internal_flow)
-                    self.node_element_map[internal_flow] = flow
+                if len(flow.f_multiples) > 1:
+                    gateway = self.create_gateway(flow)
+                    sequence_flow = SequenceFlow(gateway, self.to_process_node(flow.f_single))
+                    self.f_model.edges.append(sequence_flow)
+                    self.add_to_prevalent_lane(flow, gateway)
+                    for action in flow.f_multiples:
+                        internal_flow = SequenceFlow(self.to_process_node(action), gateway)
+                        self.f_model.edges.append(internal_flow)
 
     def remove_dummies(self):
         for action in self.f_world.f_actions:
-            if isinstance(action, DummyAction) or action.f_transient or self.f_action_flow_map[action].text == DUMMY_NODE:
+            if isinstance(action, DummyAction) or action.f_transient:
                 self.remove_node(self.to_process_node(action))
 
     def finish_dangling_ends(self):
@@ -132,22 +131,12 @@ class ProcessModelBuilder(Base):
                 target_map.setdefault(node, 0)
 
                 if source_map[node] == 0 or (isinstance(node, Gateway) and source_map[node] == 1 and target_map[node] == 1):
-                    end_event = Event(END_EVENT)
-                    self.f_model.nodes.append(end_event)
-                    self.node_element_map[end_event] = self.node_element_map[node]
-                    self.add_to_same_lane(node, end_event)
-                    sequence_flow = SequenceFlow(node, end_event)
-                    self.f_model.edges.append(sequence_flow)
+                    self.create_end_event(node)
                 if target_map[node] == 0:
                     if isinstance(node, Event) and node.class_type == INTERMEDIATE_EVENT and node.parent_node:
                         continue
                     else:
-                        start_event = Event(START_EVENT)
-                        self.f_model.nodes.append(start_event)
-                        self.node_element_map[start_event] = self.node_element_map[node]
-                        self.add_to_same_lane(node, start_event)
-                        sequence_flow = SequenceFlow(start_event, node)
-                        self.f_model.edges.append(sequence_flow)
+                        self.create_start_event(node)
 
     def process_meta_activities(self):
         for action in self.f_world.f_actions:
@@ -165,135 +154,53 @@ class ProcessModelBuilder(Base):
                     if len(predecessors) == 1 and isinstance(predecessors[0], Event) and predecessors[0].class_type == START_EVENT:
                         self.remove_node(node)
 
-    def create_task(self, action):
-        task = Activity()
-        name = self.create_task_text(action)
-        task.text = name
-        self.f_model.nodes.append(task)
-        self.node_element_map[task] = action
-        return task
+    def create_start_event(self, flow_object):
+        element = self.f_flow_action_map.get(flow_object, None)
 
-    def create_task_text(self, action):
-        text = ""
-        if action.f_negated:
-            if action.f_aux:
-                text += action.f_aux + " "
-            text += "not "
+        if isinstance(element, Action) and self.is_event_action(element):
+            # A process model can start with a Message event
+            if not isinstance(flow_object, Event) or flow_object.class_sub_type != MESSAGE_EVENT:
+                sequence_flow = [edge for edge in self.f_model.edges if edge.source == flow_object]
+                if len(sequence_flow) == 1:
+                    start_event = Event(element, START_EVENT)
+                    sequence_flow[0].source = start_event
+                    self.f_model.nodes.append(start_event)
+                    self.add_to_same_lane(flow_object, start_event)
+                    self.f_model.remove_node(flow_object)
 
-        if WordNetWrapper.is_weak_action(action) and self.can_be_transformed(action):
-            if action.f_actorFrom and action.f_actorFrom.f_unreal and self.has_hidden_action(action.f_actorFrom):
-                text += self.transform_to_action(action.f_actorFrom)
-            elif action.f_object and (isinstance(action.f_object, Resource) or not action.f_object.f_unreal):
-                text += self.transform_to_action(action.f_object)
-        else:
-            weak_verb = WordNetWrapper.is_weak_verb(action.f_name)
-            if not weak_verb:
-                text += WordNetWrapper.get_base_form(action.f_name) + " "
-                if action.f_prt:
-                    text += action.f_prt + " "
-            # elif (not action.f_actorFrom or action.f_actorFrom.f_metaActor) and not action.f_xcomp:
-            #     # TODO: if REMOVE_LOW_ENTROPY_NODES
-            #     return DUMMY_NODE
-            elif not action.f_xcomp:
-                text += self.get_event_text(action)
-                return " ".join(text.split())
+    def create_end_event(self, flow_object):
+        element = self.f_flow_action_map.get(flow_object, None)
 
-            xcomp_added = False
-            mod_added = False
+        if isinstance(element, Action) and WordNetWrapper.is_verb_of_type(element.f_name, END_VERB):
+            # A process model can end with a Message event
+            if not isinstance(flow_object, Event) or flow_object.class_sub_type != MESSAGE_EVENT:
+                sequence_flow = [edge for edge in self.f_model.edges if edge.target == flow_object]
+                if len(sequence_flow) == 1:
+                    end_event = Event(element, END_EVENT)
+                    sequence_flow[0].target = end_event
+                    self.f_model.nodes.append(end_event)
+                    self.add_to_same_lane(flow_object, end_event)
+                    self.f_model.remove_node(flow_object)
 
-            if action.f_object:
-                if action.f_mod and action.f_modPos < action.f_object.f_word_index:
-                    text += " " + action.f_mod + " "
-                    mod_added = True
-                if action.f_xcomp and action.f_xcomp.f_word_index < action.f_object.f_word_index:
-                    text += " " + self.get_xcomp_text(action, not weak_verb) + " "
-                    xcomp_added = True
-                for spec in action.get_specifiers(IOBJ):
-                    text += spec.f_name + " "
-                text += self.get_name(action.f_object, True, 1, False)
-                for spec in action.get_specifiers(DOBJ):
-                    text += " " + spec.f_name
-
-            if not mod_added and action.f_mod:
-                text += " " + action.f_mod
-
-            if not xcomp_added and action.f_xcomp:
-                text += " " + self.get_specifiers_text(action, action.f_xcomp.f_word_index, True)
-                text += " " + self.get_xcomp_text(action, not weak_verb or action.f_object is not None)
-
-            xcomp_pos = action.f_xcomp.f_word_index if action.f_xcomp else -1
-            text += " " + self.get_specifiers_text(action, xcomp_pos, False)
-
-            if action.f_object:
-                for spec in action.get_specifiers(PP):
-                    if spec.f_name.startswith((TO, IN, ABOUT)) \
-                            and not Search.starts_with(f_conditionIndicators, spec.f_name):
-                        if spec.f_object:
-                            text += " " + spec.f_headWord + " " + self.get_name(spec.f_object, True, 1, False)
-                        else:
-                            text += " " + spec.f_name
-                            break
-
-        return " ".join(text.split())
-
-    @staticmethod
-    def create_event_node(action):
+    def create_event_node(self, action):
         for spec in action.f_specifiers:
             for word in spec.f_name.split(" "):
                 if WordNetWrapper.is_time_period(word):
-                    timer_event = Event(INTERMEDIATE_EVENT, TIMER_EVENT)
+                    timer_event = Event(action, INTERMEDIATE_EVENT, TIMER_EVENT)
                     timer_event.text = spec.f_name
                     return timer_event
 
         if WordNetWrapper.is_verb_of_type(action.f_name, SEND_VERB) or WordNetWrapper.is_verb_of_type(action.f_name, RECEIVE_VERB):
-            message_event = Event(INTERMEDIATE_EVENT, MESSAGE_EVENT)
-            if WordNetWrapper.is_verb_of_type(action.f_name, SEND_VERB):
-                message_event.sub_type = THROWING_EVENT
-            return message_event
+            if not self.get_lane(action.f_actorFrom):
+                message_event = Event(action, INTERMEDIATE_EVENT, MESSAGE_EVENT)
+                if WordNetWrapper.is_verb_of_type(action.f_name, SEND_VERB):
+                    message_event.sub_type = THROWING_EVENT
+                return message_event
 
-        return Event(INTERMEDIATE_EVENT)
+        if action.f_marker in f_conditionIndicators:
+            return Event(action, INTERMEDIATE_EVENT, CONDITIONAL_EVENT)
 
-    def get_event_text(self, action):
-        text = ""
-        actor_plural = False
-
-        if action.f_actorFrom:
-            text += self.get_name(action.f_actorFrom, True, 1, False) + " "
-            actor_plural = action.f_actorFrom.f_name.endswith("s")
-
-        if WordNetWrapper.is_weak_verb(action.f_name) or action.f_cop or \
-                action.f_object or len(action.f_specifiers) > 0 or action.f_negated:
-            is_do = action.f_aux and WordNetWrapper.get_base_form(action.f_aux) == DO
-
-            if action.f_negated and (not WordNetWrapper.is_weak_verb(action.f_name) or is_do):
-                if action.f_aux and not WordNetWrapper.get_base_form(action.f_aux) == BE:
-                    text += action.f_aux
-                else:
-                    text += DO if actor_plural else Processing.get_third_person(DO)
-
-                text += " not " + WordNetWrapper.get_base_form(action.f_name) + " "
-            else:
-                if action.f_aux:
-                    if action.f_actorFrom and not action.f_actorFrom.f_passive:
-                        text += action.f_aux + " " + action.f_name
-                    else:
-                        text += Processing.get_third_person(action.f_name)
-                else:
-                    text += WordNetWrapper.get_base_form(action.f_name) if actor_plural else Processing.get_third_person(action.f_name)
-
-                if action.f_negated:
-                    text += " not "
-
-            text += " "
-
-        if action.f_cop:
-            text += action.f_cop
-        elif action.f_object:
-            text += self.get_name(action.f_object, True, 1, False)
-        elif len(action.f_specifiers) > 0:
-            text += action.f_specifiers[0].f_name
-
-        return text
+        return Event(action, INTERMEDIATE_EVENT)
 
     def get_lane(self, actor):
         subject = actor.f_subjectRole
@@ -309,10 +216,9 @@ class ProcessModelBuilder(Base):
             self.f_actor_name_map[actor] = name
 
             if name not in self.f_name_pool_map:
-                lane = Lane(name, self.f_main_pool)
+                lane = Lane(actor, name, self.f_main_pool)
                 self.f_main_pool.process_nodes.append(lane)
                 self.f_model.nodes.append(lane)
-                self.node_element_map[lane] = actor
                 self.f_name_pool_map[name] = lane
                 return lane
             else:
@@ -325,8 +231,7 @@ class ProcessModelBuilder(Base):
             return self.f_action_flow_map[action]
         else:
             if isinstance(action, DummyAction):
-                task = Activity()
-                task.text = DUMMY_NODE
+                task = Task(action)
                 self.f_action_flow_map[action] = task
                 self.f_flow_action_map[task] = action
                 return task
@@ -334,25 +239,33 @@ class ProcessModelBuilder(Base):
                 self.logger.error("FlowObject not found!")
                 return None
 
+    @staticmethod
+    def create_activity(action):
+        # if len(action.f_specifiers) > 0:
+        #     return Activity(action)
+        # else:
+        return Task(action)
+
     def create_gateway(self, flow):
-        gateway = Gateway()
+        gateway = Gateway(flow)
+
         if flow.f_type == CONCURRENCY:
             gateway.type = PARALLEL_GATEWAY
         elif flow.f_type == MULTIPLE_CHOICE:
             gateway.type = INCLUSIVE_GATEWAY
         else:
+            gateway.type = EXCLUSIVE_GATEWAY
             # Default type
-            gateway.type = EVENT_BASED_GATEWAY
-            for action in flow.f_multiples:
-                node = self.f_action_flow_map.get(action)
-                if isinstance(node, Event) and node.class_type == INTERMEDIATE_EVENT and not node.class_sub_type:
-                    continue
-                else:
-                    gateway.type = EXCLUSIVE_GATEWAY
-                    break
+            # gateway.type = EVENT_BASED_GATEWAY
+            # for action in flow.f_multiples:
+            #     node = self.f_action_flow_map.get(action)
+            #     if isinstance(node, Event) and node.class_type == INTERMEDIATE_EVENT and not node.class_sub_type:
+            #         continue
+            #     else:
+            #         gateway.type = EXCLUSIVE_GATEWAY
+            #         break
 
         self.f_model.nodes.append(gateway)
-        self.node_element_map[gateway] = flow
         return gateway
 
     def add_to_prevalent_lane(self, flow, gateway):
@@ -395,8 +308,6 @@ class ProcessModelBuilder(Base):
                 succ_edge = edge
 
         self.f_model.remove_node(node)
-        if node in self.node_element_map:
-            del(self.node_element_map[node])
 
         if pred_edge and succ_edge:
             sequence_flow = SequenceFlow(pred_edge.source, succ_edge.target)
@@ -477,6 +388,17 @@ class ProcessModelBuilder(Base):
 
         return False
 
+    @staticmethod
+    def is_event_action(action):
+        if action.label == VBN:
+            for dep in action.f_sentence.f_dependencies:
+                if dep['governor'] == action.f_word_index and dep['dep'] == AUXPASS:
+                    dep_in_tree = Search.find_dep_in_tree(action.f_sentence.f_tree, dep['dependent'])
+                    if dep_in_tree.label() != VB:
+                        return True
+
+        return False
+
     def transform_to_action(self, obj):
         text = ""
         for word in obj.f_name.split():
@@ -487,41 +409,6 @@ class ProcessModelBuilder(Base):
         for spec in obj.get_specifiers(PP):
             if spec.startswith(OF) and spec.f_object:
                 text += " " + self.get_name(spec.f_object, True, 1, False)
-
-        return text
-
-    def get_xcomp_text(self, action, need_aux):
-        text = ""
-        if need_aux:
-            if action.f_xcomp.f_aux:
-                text += " " + action.f_xcomp.f_aux + " "
-            else:
-                text += " to "
-        text += self.create_task_text(action.f_xcomp)
-        return text
-
-    def get_specifiers_text(self, action, limit, strict_before):
-        text = ""
-        if not action.f_object:
-            specs = action.get_specifiers(PP)
-
-            if not action.f_xcomp:
-                specs.extend(action.get_specifiers(SBAR))
-
-            specs = reversed(specs)
-            found = False
-
-            for spec in specs:
-                if spec.f_type == SBAR and found:
-                    break
-                if spec.f_word_index > action.f_word_index:
-                    before = spec.f_word_index < limit
-                    if before == strict_before and self.consider_phrase(spec):
-                        found = True
-                        if spec.f_object:
-                            text += " " + spec.f_headWord + " " + self.get_name(spec.f_object, True, 1, False)
-                        else:
-                            text += " " + spec.f_name
 
         return text
 

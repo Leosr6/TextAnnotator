@@ -63,9 +63,10 @@ def find_in_tree(tree, label, exclude):
     result = []
     if tree.label() == label:
         result.append(tree)
-    for child in list(tree):
-        if not isinstance(child, str) and child.label() not in exclude:
-            result.extend(find_in_tree(child, label, exclude))
+    if len(result) == 0:
+        for child in list(tree):
+            if not isinstance(child, str) and child.label() not in exclude:
+                result.extend(find_in_tree(child, label, exclude))
 
     return result
 

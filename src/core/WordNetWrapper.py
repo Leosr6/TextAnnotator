@@ -36,7 +36,7 @@ class WordNetWrapper(Base):
                 self.accepted_forward_links.extend(synset.lemma_names())
 
     def person_or_system(self, full_noun, main_noun):
-        if full_noun in f_personCorrectorList or full_noun in f_personPronouns:
+        if full_noun in f_personCorrectorList or main_noun in f_personPronouns:
             return True
 
         synsets = wn.synsets(full_noun, POS_NOUN)

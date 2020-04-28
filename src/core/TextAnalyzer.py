@@ -531,9 +531,10 @@ class TextAnalyzer(Base):
                 if status != NOT_CONTAINED:
                     link = Search.get_action(actions, conj.f_to)
                     if link:
-                        conjoined.append(link)
-                        if not conj_type:
-                            conj_type = conj.f_type
+                        if link not in conjoined:
+                            conjoined.append(link)
+                            if not conj_type:
+                                conj_type = conj.f_type
                     else:
                         self.logger.error("Unable to determine action from link {}".format(conj.f_to))
             elif conj_type:
@@ -553,7 +554,7 @@ class TextAnalyzer(Base):
             last_flow_added = self.f_world.f_lastFlowAdded
 
             if last_flow_added:
-                if action.f_marker == WHILE or last_flow_added.f_type == CONCURRENCY:
+                if action.f_marker == WHILE or last_flow_added.f_multiples[0].f_marker == WHILE:
                     if last_flow_added.f_multiples[0].f_sentence == action.f_sentence:
                         last_flow_added.f_multiples.append(action)
                         last_flow_added.f_type = CONCURRENCY

@@ -57,7 +57,7 @@ class Cluster:
 
     def __init__(self, actor=None, name=None, pool=None):
         self.process_nodes = []
-        self.actor = actor
+        self.element = actor
         self.name = name
         self.pool = pool
 

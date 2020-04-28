@@ -1,7 +1,9 @@
 from core.Base import Base
 from data.BPMNElements import *
 from data.TextElements import *
+from data.SentenceElements import *
 from utils.Constants import *
+from copy import copy
 
 
 class TextGenerator(Base):
@@ -10,7 +12,6 @@ class TextGenerator(Base):
         self.text_analyzer = text_analyzer
         self.model_builder = model_builder
         self.element_id_map = {}
-        self.process_id_map = {}
 
     def create_metadata(self):
 
@@ -19,41 +20,29 @@ class TextGenerator(Base):
         self.create_ids()
 
         metadata = {
-            "processList": self.create_process_list(),
-            "text": self.create_text(stanford_sentences)
+            "resourceList": self.create_resource_list(),
+            "text": self.create_text(stanford_sentences),
+            "gateways": self.create_gateways()
         }
 
         return metadata
 
     def create_ids(self):
         element_id = 0
-        process_id = 0
-
-        for node in self.model_builder.f_model.nodes:
-            if isinstance(node, Pool):
-                self.process_id_map[node] = "id-{}".format(process_id)
-                process_id += 1
 
         for node in self.model_builder.f_model.nodes:
             if isinstance(node, FlowObject) or isinstance(node, Lane):
                 self.element_id_map[node] = "id-{}".format(element_id)
                 element_id += 1
 
-    def create_process_list(self):
-        process_list = []
+    def create_resource_list(self):
 
-        for pool, process_id in self.process_id_map.items():
-            resource_list = []
-            for node in pool.process_nodes:
-                if isinstance(node, Lane):
-                    resource_list.append({"id": self.element_id_map[node], "name": node.name})
-            process_list.append({
-                "resourceList": resource_list,
-                "id": process_id,
-                "name": pool.name
-            })
+        resource_list = []
+        for node in self.model_builder.f_model.nodes:
+            if isinstance(node, Lane):
+                resource_list.append({"id": self.element_id_map[node], "name": node.name})
 
-        return process_list
+        return resource_list
 
     def create_text(self, stanford_sentences):
 
@@ -62,77 +51,120 @@ class TextGenerator(Base):
 
         for sentence in stanford_sentences:
             text[sentence] = {
+                "sentenceId": sentence.f_id,
                 "value": str(sentence),
-                "snippetList": [],
-                "newSplitPath": False
+                "snippetList": []
             }
 
         nodes = set()
         for node in self.model_builder.f_model.edges:
-            nodes.add(node.source)
-            nodes.add(node.target)
+            if not isinstance(node.source, Gateway):
+                nodes.add(node.source)
+            if not isinstance(node.target, Gateway):
+                nodes.add(node.target)
+
+        for node in self.model_builder.f_model.nodes:
+            if isinstance(node, Lane):
+                nodes.add(node)
 
         for node in nodes:
             element = node.element
-            if isinstance(node, FlowObject):
-                sentence = text.get(element.f_sentence)
-                if sentence:
-                    snippet = {
-                        "startIndex": self.get_element_start_index(element),
-                        "endIndex": self.get_element_end_index(element),
-                        "processElementId": self.element_id_map[node],
-                        "processElementType": self.get_element_type(element, node),
-                        "resourceId": self.get_resource_id(node),
-                        "processId": self.get_process_id(node),
-                        "level": self.get_object_level(node)
-                    }
-                    sentence["snippetList"].append(snippet)
-            if isinstance(node, Gateway) and element.f_direction == SPLIT:
-                for multiples in element.f_multiples:
-                    split_sentence = text.get(multiples.f_sentence)
-                    if split_sentence:
-                        split_sentence["newSplitPath"] = True
+            sentence = text.get(element.f_sentence)
+            if sentence:
+                snippet = {
+                    "startIndex": self.get_element_start_index(element),
+                    "endIndex": self.get_element_end_index(element),
+                    "processElementId": self.element_id_map[node],
+                    "processElementType": self.get_node_type(node),
+                    "resourceId": self.get_resource_id(node),
+                    "level": self.get_object_level(node)
+                }
+                sentence["snippetList"].append(snippet)
 
         return [text[sentence] for sentence in stanford_sentences]
 
-    def get_process_id(self, flow_object):
-        for pool, process_id in self.process_id_map.items():
-            for lane in pool.process_nodes:
-                if flow_object in lane.process_nodes:
-                    return process_id
+    def create_gateways(self):
 
-        return 0
+        gateway_list = []
+
+        gateways = set()
+        for node in self.model_builder.f_model.edges:
+            if isinstance(node.source, Gateway):
+                gateways.add(node.source)
+            if isinstance(node.target, Gateway):
+                gateways.add(node.target)
+
+        for gateway in gateways:
+
+            gateway_data = {
+                "processElementId": self.element_id_map[gateway],
+                "processElementType": self.get_node_type(gateway),
+                "resourceId": self.get_resource_id(gateway),
+                "level": self.get_object_level(gateway),
+                "branches": []
+            }
+
+            # Order gateway actions by sentence id
+            gateway.element.f_multiples.sort(key=lambda action: action.f_sentence.f_id)
+
+            # In a split, all branches are added
+            if gateway.element.f_direction == SPLIT:
+                for element in gateway.element.f_multiples:
+                    start_index, end_index = self.get_split_index(gateway, element)
+                    gateway_data["branches"].append({
+                        "startIndex": start_index,
+                        "endIndex": end_index,
+                        "sentenceId": element.f_sentence.f_id
+                    })
+            else:
+                element = gateway.element.f_multiples[-1]
+                index = self.get_element_end_index(element)
+                gateway_data["branches"].append({
+                    "startIndex": index,
+                    "endIndex": index,
+                    "sentenceId": element.f_sentence.f_id
+                })
+
+            gateway_list.append(gateway_data)
+
+        return gateway_list
 
     @staticmethod
-    def get_element_type(element, flow_object):
-        element_type = ""
+    def get_node_type(node):
+        node_type = ""
+        element = node.element
 
-        if isinstance(flow_object, Task):
-            element_type = "TASK"
-        elif isinstance(flow_object, Activity):
-            element_type = "ACTIVITY"
-        elif isinstance(flow_object, Gateway):
-            if flow_object.type == EXCLUSIVE_GATEWAY:
-                element_type = "XORSPLIT" if element.f_direction == SPLIT else "XORJOIN"
-            elif flow_object.type == PARALLEL_GATEWAY:
-                element_type = "ANDSPLIT" if element.f_direction == SPLIT else "ANDJOIN"
-            elif flow_object.type == INCLUSIVE_GATEWAY:
-                element_type = "ORSPLIT" if element.f_direction == SPLIT else "ORJOIN"
-            elif flow_object.type == EVENT_BASED_GATEWAY:
-                element_type = EVENT_BASED_GATEWAY
+        if isinstance(node, Task):
+            node_type = "TASK"
+        elif isinstance(node, Activity):
+            node_type = "ACTIVITY"
+        elif isinstance(node, Lane):
+            node_type = "LANE"
+        elif isinstance(node, Gateway):
+            if node.type == EXCLUSIVE_GATEWAY:
+                node_type = "XORSPLIT" if element.f_direction == SPLIT else "XORJOIN"
+            elif node.type == PARALLEL_GATEWAY:
+                node_type = "ANDSPLIT" if element.f_direction == SPLIT else "ANDJOIN"
+            elif node.type == INCLUSIVE_GATEWAY:
+                node_type = "ORSPLIT" if element.f_direction == SPLIT else "ORJOIN"
+            elif node.type == EVENT_BASED_GATEWAY:
+                node_type = EVENT_BASED_GATEWAY
             else:
-                element_type = flow_object.type
-        elif isinstance(flow_object, Event):
+                node_type = node.type
+        elif isinstance(node, Event):
             # TODO: check event sub_type
-            element_type = flow_object.class_sub_type + flow_object.class_type if flow_object.class_sub_type else flow_object.class_type
-            # element_type = flow_object.class_type
+            node_type = node.class_sub_type + node.class_type if node.class_sub_type else node.class_type
+            # node_type = node.class_type
 
-        return element_type.upper()
+        return node_type.upper()
 
-    def get_resource_id(self, flow_object):
-        for node in self.model_builder.f_model.nodes:
-            if isinstance(node, Lane) and flow_object in node.process_nodes:
-                return self.element_id_map[node]
+    def get_resource_id(self, node):
+        for resource in self.model_builder.f_model.nodes:
+            if isinstance(resource, Lane) and node in resource.process_nodes:
+                return self.element_id_map[resource]
+
+        if isinstance(node, Lane):
+            return self.element_id_map[node]
 
         return -1
 
@@ -162,20 +194,53 @@ class TextGenerator(Base):
 
         return level
 
+    def get_split_index(self, node, element):
+        start_index = None
+        end_index = None
+
+        if node.type == EXCLUSIVE_GATEWAY:
+            if element.f_marker in f_conditionIndicators:
+                start_index = element.f_markerPos
+                end_index = element.f_markerPos
+            elif element.f_preAdvMod in f_conditionIndicators:
+                start_index = element.f_preAdvModPos
+                end_index = element.f_preAdvModPos
+        elif node.type == PARALLEL_GATEWAY:
+            if element.f_marker in f_parallelIndicators:
+                start_index = element.f_markerPos
+                end_index = element.f_markerPos
+        elif node.type == INCLUSIVE_GATEWAY:
+            pass
+
+        if not start_index or not end_index:
+            element_to_mark = self.find_gateway_element(node, element)
+            start_index = self.get_element_start_index(element_to_mark)
+            end_index = self.get_element_end_index(element_to_mark)
+
+        return start_index, end_index
+
+    def find_gateway_element(self, gateway, action):
+        action_list = copy(gateway.element.f_multiples)
+        action_list.remove(action)
+
+        if action.f_actorFrom and len([x for x in action_list if x.f_actorFrom == action.f_actorFrom]) == 0:
+            return action.f_actorFrom
+
+        if len([x for x in action_list if x.f_word_index == action.f_word_index]) == 0:
+            return action
+
+        if action.f_object and len([x for x in action_list if x.f_object == action.f_object]) == 0:
+            return action.f_object
+
+        return action
+
     def get_element_start_index(self, element):
         candidates = []
 
-        if isinstance(element, Flow):
-            if element.f_direction == SPLIT:
-                for multiple in element.f_multiples:
-                    if element.f_sentence == multiple.f_sentence:
-                        candidates.append(self.get_element_start_index(multiple))
-                        if multiple.f_markerPos > 0:
-                            candidates.append(multiple.f_markerPos)
-                        if multiple.f_preAdvModPos > 0:
-                            candidates.append(multiple.f_preAdvModPos)
-            else:
-                candidates.append(self.get_element_end_index(element))
+        if isinstance(element, Actor) or isinstance(element, Resource):
+            candidates.append(element.f_word_index)
+            for spec in element.f_specifiers:
+                candidates.append(spec.f_word_index)
         elif isinstance(element, DummyAction):
             candidates.append(element.f_word_index)
         elif isinstance(element, Action):
@@ -195,13 +260,10 @@ class TextGenerator(Base):
     def get_element_end_index(self, element):
         candidates = []
 
-        if isinstance(element, Flow):
-            if element.f_direction == JOIN:
-                for multiple in element.f_multiples:
-                    if element.f_sentence == multiple.f_sentence:
-                        candidates.append(self.get_element_end_index(multiple))
-            else:
-                candidates.append(self.get_element_start_index(element))
+        if isinstance(element, Actor) or isinstance(element, Resource):
+            candidates.append(element.f_word_index)
+            for spec in element.f_specifiers:
+                candidates.append(spec.f_word_index)
         elif isinstance(element, DummyAction):
             candidates.append(element.f_word_index)
         elif isinstance(element, Action):
@@ -212,10 +274,10 @@ class TextGenerator(Base):
 
             if element.f_object:
                 candidates.append(element.f_object.f_word_index + element.f_object.f_name.count(" "))
-                # for spec in element.f_object.f_specifiers:
-                #     candidates.append(spec.f_word_index + spec.f_name.count(" "))
+                for spec in element.f_object.f_specifiers:
+                    candidates.append(spec.f_word_index + spec.f_name.count(" "))
 
-            # if element.f_xcomp:
-            #     candidates.append(self.get_element_end_index(element.f_xcomp))
+            if element.f_xcomp:
+                candidates.append(self.get_element_end_index(element.f_xcomp))
 
         return max(candidates, default=1)

@@ -20,27 +20,31 @@ class WordNetWrapper(Base):
         for word in f_acceptedAMODforLoops:
             synsets = wn.synsets(word, POS_ADJECTIVE)
             for synset in synsets:
-                self.accepted_AMOD_list.extend(synset.lemma_names())
+                self.accepted_AMOD_list.extend(self.get_lemmas(synset))
 
             synsets = wn.synsets(word, POS_ADVERB)
             for synset in synsets:
-                self.accepted_AMOD_list.extend(synset.lemma_names())
+                self.accepted_AMOD_list.extend(self.get_lemmas(synset))
 
         for word in f_acceptedForForwardLink:
             synsets = wn.synsets(word, POS_ADJECTIVE)
             for synset in synsets:
-                self.accepted_forward_links.extend(synset.lemma_names())
+                self.accepted_forward_links.extend(self.get_lemmas(synset))
 
             synsets = wn.synsets(word, POS_ADVERB)
             for synset in synsets:
-                self.accepted_forward_links.extend(synset.lemma_names())
+                self.accepted_forward_links.extend(self.get_lemmas(synset))
+
+    @staticmethod
+    def get_lemmas(synset):
+        return [lemma.replace("_", " ").lower() for lemma in synset.lemma_names()]
 
     def person_or_system(self, full_noun, main_noun):
         if full_noun in f_personCorrectorList or main_noun in f_personPronouns:
             return True
 
         synsets = wn.synsets(full_noun, POS_NOUN)
-        lemmas = map(str.lower, reduce(lambda x, synset: x + synset.lemma_names(), synsets, []))
+        lemmas = reduce(lambda x, synset: x + self.get_lemmas(synset), synsets, [])
         if len(synsets) == 0 or main_noun not in lemmas:
             synsets = wn.synsets(main_noun, POS_NOUN)
 
@@ -61,7 +65,7 @@ class WordNetWrapper(Base):
     def is_meta_actor(self, full_noun, noun):
         if full_noun not in f_personCorrectorList:
             synsets = wn.synsets(full_noun, POS_NOUN)
-            lemmas = map(str.lower, reduce(lambda x, synset: x + synset.lemma_names(), synsets, []))
+            lemmas = reduce(lambda x, synset: x + self.get_lemmas(synset), synsets, [])
             if len(synsets) == 0 or noun not in lemmas:
                 synsets = wn.synsets(noun, POS_NOUN)
 
@@ -140,8 +144,8 @@ class WordNetWrapper(Base):
     def can_be(self, synset, word_list, checked):
         if synset not in checked:
             checked.append(synset)
-            for word in word_list:
-                if word in map(str.lower, synset.lemma_names()):
+            for lemma in self.get_lemmas(synset):
+                if lemma in word_list:
                     return True
 
             for hypernym in synset.hypernyms():
@@ -150,12 +154,11 @@ class WordNetWrapper(Base):
 
         return False
 
-    @staticmethod
-    def get_best_fit(synsets, word):
+    def get_best_fit(self, synsets, word):
         best_fit = None
         lowest_distance = 0
         for synset in synsets:
-            for lemma in synset.lemma_names():
+            for lemma in self.get_lemmas(synset):
                 distance = edit_distance(lemma.lower(), word)
                 if not best_fit or distance < lowest_distance:
                     best_fit = lemma.lower()

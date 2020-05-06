@@ -12,7 +12,6 @@ class SentenceAnalyzer(Base):
     def __init__(self, world_model):
         self.f_world = world_model
         self.f_sentenceTags = [S, SBAR, SINV]
-        self.f_tokens = []
         self.f_dependencies = []
         self.f_analyzed_sentence = None
         self.f_full_sentence = None
@@ -23,7 +22,6 @@ class SentenceAnalyzer(Base):
 
         self.f_stanford_sentence = sentence
         self.f_full_sentence = sentence.f_tree
-        self.f_tokens = sentence.f_tokens
         self.f_dependencies = sentence.f_dependencies
         self.f_analyzed_sentence = AnalyzedSentence(sentence, sentence.f_tree)
 
@@ -350,12 +348,9 @@ class SentenceAnalyzer(Base):
         if len(dobjs_filtered) == 0:
             if not verb.f_xcomp or not verb.f_xcomp.f_object:
                 for conj in self.f_analyzed_sentence.f_conjs:
-                    # TODO: check if logic is correct
-                    if conj.f_to.f_word_index == verb.f_word_index:
-                        #dobjs_filtered.extend(Search.filter_by_gov(dobjs, conj.f_from))
+                    if conj.f_to == verb:
                         dobjs_filtered = [dep for dep in dobjs if conj.f_to.f_word_index < dep['dependent']]
                     else:
-                        #dobjs_filtered.extend(Search.filter_by_gov(dobjs, conj.f_to))
                         dobjs_filtered = [dep for dep in dobjs if conj.f_from.f_word_index < dep['dependent']]
 
         if len(dobjs_filtered) == 0:

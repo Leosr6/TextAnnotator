@@ -1,14 +1,10 @@
 class StanfordSentence:
 
-    def __init__(self, tree, dependencies, tokens, sentence_id):
-        # TODO: check ids
-        self.f_lastID = 0
-        # TODO: check offset
-        self.f_offset = 0
-        self.f_tokens = tokens
+    def __init__(self, tree, dependencies, raw_sentence, sentence_id):
         self.f_tree = tree
         self.f_dependencies = dependencies
+        self.raw_sentence = raw_sentence
         self.f_id = sentence_id
 
     def __str__(self):
-        return " ".join([token["word"] for token in self.f_tokens])
+        return self.raw_sentence

@@ -1,18 +1,17 @@
+from copy import copy
 from core.Base import Base
 from utils import Processing
 from utils.Constants import *
-from utils import Search
 from data.BPMNElements import *
 from data.SentenceElements import *
 from data.TextElements import DummyAction
 
 
-class ProcessModelBuilder(Base):
+class ProcessElementsBuilder(Base):
 
     def __init__(self, world_model):
         self.f_world = world_model
         self.f_model = ProcessModel()
-        self.f_flow_action_map = {}
         self.f_action_flow_map = {}
         self.f_actor_name_map = {}
         self.f_name_pool_map = {}
@@ -33,23 +32,17 @@ class ProcessModelBuilder(Base):
         if len(self.f_main_pool.process_nodes) == 0:
             self.f_model.remove_node(self.f_main_pool)
 
-        # TODO: check if necessary
-        # self.build_black_box_pools()
-        # self.build_data_objects()
-
         return self.f_model
 
     def create_actions(self):
         for action in self.f_world.f_actions:
-            # Past participle indicates an event
             if self.is_event_action(action) or action.f_marker == IF or action.f_markerFromPP:
                 flow_object = self.create_event_node(action)
             else:
-                flow_object = self.create_activity(action)
+                flow_object = Task(action)
 
             self.f_model.nodes.append(flow_object)
             self.f_action_flow_map[action] = flow_object
-            self.f_flow_action_map[flow_object] = action
 
             if action.f_xcomp:
                 self.f_action_flow_map[action.f_xcomp] = flow_object
@@ -124,8 +117,10 @@ class ProcessModelBuilder(Base):
             source_map[edge.source] = source_map.get(edge.source, 0) + 1
             target_map[edge.target] = target_map.get(edge.target, 0) + 1
 
-        for node in self.f_model.nodes:
-            if isinstance(node, Activity) or isinstance(node, Gateway) or (isinstance(node, Event) and node.class_type == INTERMEDIATE_EVENT):
+        current_nodes = copy(self.f_model.nodes)
+
+        for node in current_nodes:
+            if isinstance(node, Task) or isinstance(node, Gateway) or (isinstance(node, Event) and node.class_type == INTERMEDIATE_EVENT):
                 # If the node is not present, add it with 0 occurrences
                 source_map.setdefault(node, 0)
                 target_map.setdefault(node, 0)
@@ -155,32 +150,25 @@ class ProcessModelBuilder(Base):
                         self.remove_node(node)
 
     def create_start_event(self, flow_object):
-        element = self.f_flow_action_map.get(flow_object, None)
-
-        if isinstance(element, Action) and self.is_event_action(element):
-            # A process model can start with a Message event
-            if not isinstance(flow_object, Event) or flow_object.class_sub_type != MESSAGE_EVENT:
-                sequence_flow = [edge for edge in self.f_model.edges if edge.source == flow_object]
-                if len(sequence_flow) == 1:
-                    start_event = Event(element, START_EVENT)
-                    sequence_flow[0].source = start_event
-                    self.f_model.nodes.append(start_event)
-                    self.add_to_same_lane(flow_object, start_event)
-                    self.f_model.remove_node(flow_object)
+        # A process model can start with a Message event
+        if isinstance(flow_object, Event) and flow_object.class_sub_type != MESSAGE_EVENT:
+            flow_object.class_type = START_EVENT
+            flow_object.class_sub_type = None
+            flow_object.sub_type = None
 
     def create_end_event(self, flow_object):
-        element = self.f_flow_action_map.get(flow_object, None)
+        element = flow_object.element.f_multiples[0] if isinstance(flow_object, Gateway) else flow_object.element
 
-        if isinstance(element, Action) and WordNetWrapper.is_verb_of_type(element.f_name, END_VERB):
+        if WordNetWrapper.is_verb_of_type(element.f_name, END_VERB):
             # A process model can end with a Message event
             if not isinstance(flow_object, Event) or flow_object.class_sub_type != MESSAGE_EVENT:
-                sequence_flow = [edge for edge in self.f_model.edges if edge.target == flow_object]
-                if len(sequence_flow) == 1:
-                    end_event = Event(element, END_EVENT)
-                    sequence_flow[0].target = end_event
-                    self.f_model.nodes.append(end_event)
-                    self.add_to_same_lane(flow_object, end_event)
-                    self.f_model.remove_node(flow_object)
+                sequence_flows = [edge for edge in self.f_model.edges if edge.target == flow_object]
+                end_event = Event(element, END_EVENT)
+                self.f_model.nodes.append(end_event)
+                self.add_to_same_lane(flow_object, end_event)
+                for sf in sequence_flows:
+                    sf.target = end_event
+                self.f_model.remove_node(flow_object)
 
     def create_event_node(self, action):
         for spec in action.f_specifiers:
@@ -191,7 +179,7 @@ class ProcessModelBuilder(Base):
                     return timer_event
 
         if WordNetWrapper.is_verb_of_type(action.f_name, SEND_VERB) or WordNetWrapper.is_verb_of_type(action.f_name, RECEIVE_VERB):
-            if not self.get_lane(action.f_actorFrom):
+            if not action.f_actorFrom:
                 message_event = Event(action, INTERMEDIATE_EVENT, MESSAGE_EVENT)
                 if WordNetWrapper.is_verb_of_type(action.f_name, SEND_VERB):
                     message_event.sub_type = THROWING_EVENT
@@ -233,18 +221,10 @@ class ProcessModelBuilder(Base):
             if isinstance(action, DummyAction):
                 task = Task(action)
                 self.f_action_flow_map[action] = task
-                self.f_flow_action_map[task] = action
                 return task
             else:
                 self.logger.error("FlowObject not found!")
                 return None
-
-    @staticmethod
-    def create_activity(action):
-        # if len(action.f_specifiers) > 0:
-        #     return Activity(action)
-        # else:
-        return Task(action)
 
     def create_gateway(self, flow):
         gateway = Gateway(flow)
@@ -390,12 +370,18 @@ class ProcessModelBuilder(Base):
 
     @staticmethod
     def is_event_action(action):
+        # Checking if the verb is in the past participle
         if action.label == VBN:
-            for dep in action.f_sentence.f_dependencies:
-                if dep['governor'] == action.f_word_index and dep['dep'] == AUXPASS:
-                    dep_in_tree = Search.find_dep_in_tree(action.f_sentence.f_tree, dep['dependent'])
-                    if dep_in_tree.label() != VB:
-                        return True
+            if action.f_preAdvMod or action.f_marker:
+                sentence = str(action.f_sentence).lower()
+                min_index = action.f_preAdvModPos if action.f_preAdvMod else action.f_markerPos
+                # Checking if the sentence contains any indicators that the activity has finished
+                for indicator in finishedIndicators:
+                    indicator_index = sentence.find(indicator)
+                    if indicator_index != -1:
+                        indicator_index += len(indicator.split())
+                        if min_index <= indicator_index <= action.f_word_index:
+                            return True
 
         return False
 

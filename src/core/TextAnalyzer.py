@@ -49,8 +49,8 @@ class TextAnalyzer(Base):
         sentences = self.f_parser.parse_text(text)
 
         for index, sentence in enumerate(sentences):
-            tree, deps, tokens = sentence
-            s_sentence = StanfordSentence(tree, deps, tokens, index)
+            tree, deps, raw_sentence = sentence
+            s_sentence = StanfordSentence(tree, deps, raw_sentence, index)
             stanford_sentences.append(s_sentence)
 
         return stanford_sentences
@@ -365,12 +365,12 @@ class TextAnalyzer(Base):
         actions = reversed(self.f_world.get_actions_of_sentence(sentence))
 
         for action in actions:
-            # TODO: why is this inside the loop?
             if sentence == obj.f_sentence:
                 # Find last action that comes before the object
                 if action.f_word_index < obj.f_word_index:
                     return action
             else:
+                # Returns the last action of the previous sentence
                 return action
 
         return self.find_action(sentence_id - 1, obj)
@@ -538,7 +538,7 @@ class TextAnalyzer(Base):
                     else:
                         self.logger.error("Unable to determine action from link {}".format(conj.f_to))
             elif conj_type:
-                if conj_type == AND and status == ACTOR_OBJECT and conj.f_type != AND:
+                if conj_type == AND and status == ACTOR_SUBJECT and conj.f_type != AND:
                     conj_type = MIXED
 
         return conj_type, status
@@ -549,8 +549,9 @@ class TextAnalyzer(Base):
             self.clear_split(open_split)
 
         if len(came_from) == 0:
-            self.create_dummy_node(came_from, flow)
-        if len(came_from) >= 1:
+            came_from.append(action)
+            flow.f_single = action
+        elif len(came_from) >= 1:
             last_flow_added = self.f_world.f_lastFlowAdded
 
             if last_flow_added:
@@ -733,7 +734,7 @@ class TextAnalyzer(Base):
         split.f_single = start
         join.f_single = end
 
-        if conjs[0].f_tpe == ANDOR:
+        if conjs[0].f_type == OR:
             split.f_type = MULTIPLE_CHOICE
             join.f_type = MULTIPLE_CHOICE
         else:

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardBody, CardFooter, CardHeader, Button, Popover, PopoverBody, PopoverHeader } from 'reactstrap';
+import { Card, CardBody, CardFooter, CardHeader, Button, Popover, PopoverBody, PopoverHeader, CustomInput } from 'reactstrap';
 import "./OutputSection.css";
 import { Icon } from '@iconify/react';
 import arrowBackCircleOutline from '@iconify/icons-ion/arrow-back-circle-outline';
@@ -7,24 +7,26 @@ import userIcon from '@iconify/icons-bpmn/user';
 
 const precedence = ["lane", "startevent", "endevent", "xorjoin", "andjoin", "orjoin", "xorsplit", "andsplit", "orsplit",
                     "conditionalintermediateevent", "timerintermediateevent", "messageintermediateevent", "intermediateevent",
-                    "task", "activity"]
+                    "task"]
 const stdColor = "black"
 
 function OutputSection(props) {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [popoverData, setPopoverData] = useState({});
   const [markedText, setMarkedText] = useState([]);
+  const [showIcons, setShowIcons] = useState(true);
   const {selectedMarkers, metadata, textResources, handleChangeText} = props;
 
   const handlePopoverShow = (snippet, id) => {
-
     if (snippet) {
       var popover = {};
+      var elementData = selectedMarkers[snippet.processElementType.toLowerCase()];
 
       popover.id = id;
-      popover.title = snippet.processElementType;
+      popover.title = elementData.marker;
       popover.level = snippet.level;
       popover.lane = snippet.lane;
+      popover.icon = elementData.icon;
 
       setPopoverData(popover);
       setPopoverOpen(true);
@@ -44,9 +46,10 @@ function OutputSection(props) {
       // Adding gateway branches to the snippets
       if (metadata.gateways) {
         for (var gateway of metadata.gateways.values()) {
-          for (var branch of gateway.branches.values()) {
+          for (var branchIndex in gateway.branches) {
+            var branch = gateway.branches[branchIndex];
             var sentence = sentences[branch.sentenceId];
-            var gatewayBranch = Object.assign({isGateway : true}, gateway, branch);
+            var gatewayBranch = Object.assign({isBranch : true, hideIcon : branchIndex > 0}, gateway, branch);
 
             delete gatewayBranch.branches;
             delete gatewayBranch.sentenceId;
@@ -61,6 +64,8 @@ function OutputSection(props) {
       for (var sentenceId in sentenceIds) {
         var sentence = sentences[sentenceId];
         var snippetMap = {};
+        var markerMap = {};
+        var iconMap = {};
 
         for (var snippet of sentence.snippetList.values()) {
           var elementType = snippet.processElementType.toLowerCase();
@@ -70,17 +75,23 @@ function OutputSection(props) {
             var resource = textResources.find((resource) => snippet.resourceId === resource.id);
 
             for (var wordIndex = snippet.startIndex -1; wordIndex <= snippet.endIndex -1; wordIndex++) {
-
               var currentMap = snippetMap[wordIndex];
+
               if (!currentMap || precedence.indexOf(currentMap.processElementType.toLowerCase()) > precedence.indexOf(elementType)) {
-                snippetMap[wordIndex] = {
-                  processElementType : snippet.processElementType,
-                  resourceId : snippet.resourceId,
-                  level : snippet.level,
-                  lane : resource ? resource.name : "",
-                  icon : wordIndex === snippet.startIndex -1 ? markerData.icon : undefined,
-                  marker : snippet.isGateway && wordIndex === snippet.startIndex -1
-                };
+                if (!snippet.isBranch || snippet.isExplicit) {
+                  snippetMap[wordIndex] = {
+                    processElementType : snippet.processElementType,
+                    resourceId : snippet.resourceId,
+                    level : snippet.level,
+                    lane : resource ? resource.name : ""
+                  };
+                }
+                if (wordIndex === snippet.startIndex -1 && !snippet.hideIcon)
+                  iconMap[wordIndex] = markerData.icon;
+              }
+
+              if (wordIndex === snippet.startIndex -1 && snippet.isBranch) {
+                markerMap[wordIndex] = snippet.processElementType.replace("SPLIT", "BRANCH");
               }
             }
           }
@@ -88,18 +99,23 @@ function OutputSection(props) {
 
         var words = sentence.value.split(" ");
 
-        for (var wordIndex = 0; wordIndex < words.length; wordIndex++) {
+        for (var wordIndex = 0; wordIndex < words.length; wordIndex++) {          
           var snippet = snippetMap[wordIndex];
-          var elementType = snippet && snippet.processElementType.toLowerCase();
           
-          if (snippet && snippet.marker && elementType.indexOf("split") !== -1)
-            text.push({marker : elementType.replace("split", "branch").toUpperCase()});
+          if (iconMap[wordIndex])
+            text.push({icon : iconMap[wordIndex]});
 
-          var color = snippet && selectedMarkers[elementType].color;
+          if (markerMap[wordIndex])
+            text.push({marker : markerMap[wordIndex]});
+
+          var color = null;
+
+          if (snippet) {
+            var elementType = snippet.processElementType.toLowerCase();
+            color = selectedMarkers[elementType].color;
+          }
+
           text.push({color, word : words[wordIndex], snippet});
-
-          if (snippet && snippet.marker && elementType.indexOf("join") !== -1)
-            text.push({marker : elementType.toUpperCase()});
         }
       }
     }
@@ -109,28 +125,37 @@ function OutputSection(props) {
 
   return (
       <Card>
-          <CardHeader>Marked Text</CardHeader>
+          <CardHeader>
+            <div className="d-flex">
+              Marked Text
+              <CustomInput type="switch" label="Show icons" id="iconsOnText" checked={showIcons} onChange={(e) => setShowIcons(e.target.checked)} className="ml-auto" />
+            </div>
+          </CardHeader>
           <CardBody>
             <React.Fragment>
               {markedText.map((wordData, index) =>
-
-                wordData.marker ?
+                <React.Fragment key={index}>
+                {wordData.marker &&
                   <mark key={index}>[{wordData.marker}]</mark>
-                  :
-                  <React.Fragment key={index}>
-                    {wordData.snippet && wordData.snippet.icon &&
-                    <Icon icon={wordData.snippet.icon} width="20" height="20" className="mr-2" />
-                    }
+                }
+                {wordData.icon && showIcons &&
+                  <Icon icon={wordData.icon} width="20" height="20" className="mr-2" />
+                }
+                {wordData.word &&
                     <font id={"word" + index}
                           color={wordData.color || stdColor}
                           onMouseEnter={() => handlePopoverShow(wordData.snippet, "word" + index)}
                           onMouseLeave={() => setPopoverOpen(false)}
                           style={{ fontWeight: wordData.color ? "bold" : "normal" }}>{wordData.word} </font>
-                  </React.Fragment>
+                }
+                </React.Fragment>
               )}
               {popoverOpen &&
                 <Popover placement="top" isOpen={popoverOpen} target={popoverData.id}>
-                  <PopoverHeader>{popoverData.title}</PopoverHeader>
+                  <PopoverHeader>
+                    <Icon icon={popoverData.icon} width="20" height="20" className="mr-2" />
+                    {popoverData.title}
+                  </PopoverHeader>
                   <PopoverBody>
                     <Icon icon={userIcon} width="20" height="20" className="mr-2" />
                     <span>{popoverData.lane}</span>

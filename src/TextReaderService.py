@@ -4,9 +4,9 @@ from socket import error
 import json
 from nltk.parse.corenlp import CoreNLPServer
 from flask import Flask, request, make_response
-from core.TextGenerator import TextGenerator
+from core.MetadataGenerator import MetadataGenerator
 from core.TextAnalyzer import TextAnalyzer
-from core.ProcessModelBuilder import ProcessModelBuilder
+from core.ProcessElementsBuilder import ProcessElementsBuilder
 
 
 app = Flask(__name__)
@@ -17,6 +17,8 @@ CORENLP_PATH = path.join(path.dirname(path.dirname(path.abspath(__file__))), "re
 try:
     server = CoreNLPServer(corenlp_options=["-preload",
                                             "tokenize,ssplit,pos,parse,depparse",
+                                            "-timeout",
+                                            "60000",
                                             "-serverProperties",
                                             path.join(CORENLP_PATH, "StanfordCoreNLP-serverProps.properties")],
                            path_to_jar=path.join(CORENLP_PATH, "stanford-corenlp-3.9.2.jar"),
@@ -61,10 +63,10 @@ def generate_metadata(text):
     text_analyzer = TextAnalyzer()
     f_world = text_analyzer.analyze_text(text)
 
-    model_builder = ProcessModelBuilder(f_world)
+    model_builder = ProcessElementsBuilder(f_world)
     model_builder.create_process_model()
 
-    text_generator = TextGenerator(text_analyzer, model_builder)
+    text_generator = MetadataGenerator(text_analyzer, model_builder)
 
     return text_generator.create_metadata()
 

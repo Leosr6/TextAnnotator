@@ -185,10 +185,11 @@ f_sequenceIndicators = ["then", "after", "afterward", "afterwards", "subsequentl
 f_relativeResolutionTags = ["DT", "PRP", "WP"]
 f_relativeResolutionWords = ["someone"]
 f_conditionIndicators = ["if", "whether", "in case of", "in the case of", "in case", "for the case", "whereas", "otherwise", "optionally"]
-f_exampleIndicators = ["for instance", "for example", "e.g."]
+f_exampleIndicators = ["for instance", "for example", "e.g.", "i.e."]
 f_parallelIndicators = ["while", "meanwhile", "in parallel", "concurrently", "meantime", "in the meantime"]
 f_frequencyWords = ["usually", "normally", "often", "frequently", "sometimes", "occasionally", "rarely", "seldom"]
 f_wantedDeterminers = ["a", "an", "no", "the"]
+finishedIndicators = ["when", "whenever", "once", "as soon as", "after"]
 
 """
     TODO: write description
@@ -214,7 +215,7 @@ f_personCorrectorList = ["resource provisioning", "customer service", "support",
                          "master", "masters", "assembler ag", "acme ag", "acme financial accounting", "secretarial office", "office", "registry",
                          "head", "storehouse", "atm", "crs", "company", "garage", "kitchen", "department", "ec", "sp", "mpo", "mpoo", "mpon", "msp"
                          "mspo", "mspn", "go", "pu", "ip", "inq", "sp\\/pu\\/go", "fault detector"]
-f_realActorDeterminers = ["person", "social_group", "software_system"]
+f_realActorDeterminers = ["person", "social group", "software system"]
 f_metaActorsDeterminers = ["step", "process", "case", "state"]
 f_weakVerbs = ["be", "have", "do", "achieve", "start", "exist", "base"]
 f_acceptedAMODforLoops = ["next", "back", "again"]
@@ -280,8 +281,8 @@ RECEIVE_VERB = "receive"
     TODO: write description
 """
 
-TIME_PERIOD = "time_period"
-GROUP_ACTION = "group_action"
+TIME_PERIOD = "time period"
+GROUP_ACTION = "group action"
 POS_VERB = "v"
 POS_NOUN = "n"
 POS_ADJECTIVE = "a"

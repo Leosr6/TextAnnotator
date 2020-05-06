@@ -26,6 +26,27 @@ class CoreNLPWrapper(GenericCoreNLPParser):
 
         return result
 
+    def create_raw_sentence(self, tokens):
+        tokens_map = {
+            '-LRB-': '(',
+            '-RRB-': ')',
+            '-LSB-': '[',
+            '-RSB-': ']',
+            '-LCB-': '{',
+            '-RCB-': '}',
+            '``': '"',
+            '\'\'': '"'
+        }
+
+        raw_sentence = ""
+
+        for token in tokens:
+            word = token["word"]
+            raw_sentence += tokens_map.get(word, word) + " "
+
+        return raw_sentence[:-1] if len(raw_sentence) > 0 else raw_sentence
+
+
     def parse_text(self, text):
         default_properties = {
             'outputFormat': 'xml',
@@ -50,4 +71,4 @@ class CoreNLPWrapper(GenericCoreNLPParser):
                                            read_leaf=lambda leaf: leaf.lower(),
                                            read_node=lambda node: node.split("-")[0]),
                    self.make_deps(sentence['dependencies'][3]['dep']),
-                   sentence['tokens']['token'])
+                   self.create_raw_sentence(sentence['tokens']['token']))

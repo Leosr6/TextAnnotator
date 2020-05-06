@@ -6,18 +6,23 @@ from utils.Constants import *
 from copy import copy
 
 
-class TextGenerator(Base):
+class MetadataGenerator(Base):
 
     def __init__(self, text_analyzer, model_builder):
         self.text_analyzer = text_analyzer
         self.model_builder = model_builder
         self.element_id_map = {}
+        self.process_nodes = {}
+        self.process_gateways = {}
+        self.branch_actions = {}
+        self.retricted_actions = {}
 
     def create_metadata(self):
 
         stanford_sentences = self.text_analyzer.f_raw_sentences
 
         self.create_ids()
+        self.extract_process_elements()
 
         metadata = {
             "resourceList": self.create_resource_list(),
@@ -34,6 +39,53 @@ class TextGenerator(Base):
             if isinstance(node, FlowObject) or isinstance(node, Lane):
                 self.element_id_map[node] = "id-{}".format(element_id)
                 element_id += 1
+
+    def extract_process_elements(self):
+
+        nodes = set()
+        gateways = set()
+        ignored_actions = set()
+        restricted_actions = set()
+        branch_actions = set()
+
+        action_branch_map = {}
+        for node in self.model_builder.f_model.nodes:
+            if isinstance(node, Lane):
+                nodes.add(node)
+            elif isinstance(node, Gateway):
+                flow = node.element
+                if flow.f_direction == SPLIT:
+                    for branch in flow.f_multiples:
+                        action_branch_map.setdefault((branch.f_sentence.f_id, branch.f_word_index), []).append(branch)
+                        if flow.f_type == CHOICE:
+                            branch_actions.add(branch)
+                else:
+                    if flow.f_type == CHOICE:
+                        for branch in flow.f_multiples:
+                            if branch in branch_actions:
+                                branch_actions.remove(branch)
+
+        for branch_list in action_branch_map.values():
+            if len(branch_list) > 1:
+                restricted_actions.add(branch_list[0])
+                ignored_actions.update(branch_list[1:])
+
+        self.retricted_actions = restricted_actions
+        self.branch_actions = branch_actions
+        ignored_actions.update(branch_actions)
+
+        for edge in self.model_builder.f_model.edges:
+            if isinstance(edge.source, Gateway):
+                gateways.add(edge.source)
+            elif edge.source.element not in ignored_actions:
+                nodes.add(edge.source)
+            if isinstance(edge.target, Gateway):
+                gateways.add(edge.target)
+            elif edge.target.element not in ignored_actions:
+                nodes.add(edge.target)
+
+        self.process_nodes = nodes
+        self.process_gateways = gateways
 
     def create_resource_list(self):
 
@@ -56,18 +108,7 @@ class TextGenerator(Base):
                 "snippetList": []
             }
 
-        nodes = set()
-        for node in self.model_builder.f_model.edges:
-            if not isinstance(node.source, Gateway):
-                nodes.add(node.source)
-            if not isinstance(node.target, Gateway):
-                nodes.add(node.target)
-
-        for node in self.model_builder.f_model.nodes:
-            if isinstance(node, Lane):
-                nodes.add(node)
-
-        for node in nodes:
+        for node in self.process_nodes:
             element = node.element
             sentence = text.get(element.f_sentence)
             if sentence:
@@ -87,14 +128,7 @@ class TextGenerator(Base):
 
         gateway_list = []
 
-        gateways = set()
-        for node in self.model_builder.f_model.edges:
-            if isinstance(node.source, Gateway):
-                gateways.add(node.source)
-            if isinstance(node.target, Gateway):
-                gateways.add(node.target)
-
-        for gateway in gateways:
+        for gateway in self.process_gateways:
 
             gateway_data = {
                 "processElementId": self.element_id_map[gateway],
@@ -104,30 +138,57 @@ class TextGenerator(Base):
                 "branches": []
             }
 
-            # Order gateway actions by sentence id
+            # Order gateway branches by sentence id
             gateway.element.f_multiples.sort(key=lambda action: action.f_sentence.f_id)
 
             # In a split, all branches are added
             if gateway.element.f_direction == SPLIT:
                 for element in gateway.element.f_multiples:
-                    start_index, end_index = self.get_split_index(gateway, element)
+                    start_index, end_index, is_explicit = self.get_split_index(gateway, element)
                     gateway_data["branches"].append({
                         "startIndex": start_index,
                         "endIndex": end_index,
-                        "sentenceId": element.f_sentence.f_id
+                        "sentenceId": element.f_sentence.f_id,
+                        "isExplicit": is_explicit
                     })
             else:
-                element = gateway.element.f_multiples[-1]
-                index = self.get_element_end_index(element)
+                element, index, is_explicit = self.get_join_index(gateway)
                 gateway_data["branches"].append({
                     "startIndex": index,
                     "endIndex": index,
-                    "sentenceId": element.f_sentence.f_id
+                    "sentenceId": element.f_sentence.f_id,
+                    "isExplicit": is_explicit
                 })
 
             gateway_list.append(gateway_data)
 
         return gateway_list
+
+    def get_join_index(self, gateway):
+        explicit = False
+        element = self.get_next_element(gateway)
+
+        if element and element.f_preAdvMod in WordNetWrapper.accepted_forward_links:
+            index = element.f_preAdvModPos
+            explicit = True
+        else:
+            branches = gateway.element.f_multiples
+            branches.sort(key=lambda action: (action.f_sentence.f_id, action.f_word_index))
+            element = branches[-1]
+            index = self.get_element_end_index(element) + 1
+
+        return element, index, explicit
+
+    def get_next_element(self, source):
+        for edge in self.model_builder.f_model.edges:
+            if edge.source == source:
+                node = edge.target
+                if isinstance(node, Gateway):
+                    return node.element.f_multiples[0]
+                else:
+                    return node.element
+
+        return None
 
     @staticmethod
     def get_node_type(node):
@@ -136,8 +197,6 @@ class TextGenerator(Base):
 
         if isinstance(node, Task):
             node_type = "TASK"
-        elif isinstance(node, Activity):
-            node_type = "ACTIVITY"
         elif isinstance(node, Lane):
             node_type = "LANE"
         elif isinstance(node, Gateway):
@@ -197,29 +256,29 @@ class TextGenerator(Base):
     def get_split_index(self, node, element):
         start_index = None
         end_index = None
+        explicit = True
 
         if node.type == EXCLUSIVE_GATEWAY:
             if element.f_marker in f_conditionIndicators:
                 start_index = element.f_markerPos
-                end_index = element.f_markerPos
+                end_index = self.get_element_end_index(element) if element in self.branch_actions else start_index
             elif element.f_preAdvMod in f_conditionIndicators:
                 start_index = element.f_preAdvModPos
-                end_index = element.f_preAdvModPos
+                end_index = self.get_element_end_index(element) if element in self.branch_actions else start_index
         elif node.type == PARALLEL_GATEWAY:
             if element.f_marker in f_parallelIndicators:
                 start_index = element.f_markerPos
-                end_index = element.f_markerPos
-        elif node.type == INCLUSIVE_GATEWAY:
-            pass
+                end_index = start_index
 
         if not start_index or not end_index:
-            element_to_mark = self.find_gateway_element(node, element)
+            element_to_mark = self.find_branch_element(node, element)
             start_index = self.get_element_start_index(element_to_mark)
             end_index = self.get_element_end_index(element_to_mark)
+            explicit = node.type == EXCLUSIVE_GATEWAY
 
-        return start_index, end_index
+        return start_index, end_index, explicit
 
-    def find_gateway_element(self, gateway, action):
+    def find_branch_element(self, gateway, action):
         action_list = copy(gateway.element.f_multiples)
         action_list.remove(action)
 
@@ -238,9 +297,10 @@ class TextGenerator(Base):
         candidates = []
 
         if isinstance(element, Actor) or isinstance(element, Resource):
-            candidates.append(element.f_word_index)
+            det = 1 if element.f_determiner else 0
+            candidates.append(element.f_word_index - det)
             for spec in element.f_specifiers:
-                candidates.append(spec.f_word_index)
+                candidates.append(spec.f_word_index - det)
         elif isinstance(element, DummyAction):
             candidates.append(element.f_word_index)
         elif isinstance(element, Action):
@@ -257,7 +317,7 @@ class TextGenerator(Base):
 
         return min([candidate for candidate in candidates if candidate > 0], default=1)
 
-    def get_element_end_index(self, element):
+    def get_element_end_index(self, element, xcomp=False):
         candidates = []
 
         if isinstance(element, Actor) or isinstance(element, Resource):
@@ -269,15 +329,20 @@ class TextGenerator(Base):
         elif isinstance(element, Action):
             candidates.append(element.f_word_index)
 
-            for spec in element.f_specifiers:
-                candidates.append(spec.f_word_index + spec.f_name.count(" "))
+            if element.f_cop:
+                candidates.append(element.f_copIndex)
 
-            if element.f_object:
-                candidates.append(element.f_object.f_word_index + element.f_object.f_name.count(" "))
-                for spec in element.f_object.f_specifiers:
-                    candidates.append(spec.f_word_index + spec.f_name.count(" "))
+            if element not in self.retricted_actions:
+                if not xcomp:
+                    for spec in element.f_specifiers:
+                        candidates.append(spec.f_word_index + spec.f_name.count(" "))
 
-            if element.f_xcomp:
-                candidates.append(self.get_element_end_index(element.f_xcomp))
+                if element.f_object:
+                    candidates.append(element.f_object.f_word_index + element.f_object.f_name.count(" "))
+                    for spec in element.f_object.f_specifiers:
+                        candidates.append(spec.f_word_index + spec.f_name.count(" "))
+
+                if element.f_xcomp:
+                    candidates.append(self.get_element_end_index(element.f_xcomp, xcomp=True))
 
         return max(candidates, default=1)

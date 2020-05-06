@@ -87,9 +87,5 @@ class Gateway(FlowObject):
         self.type = None
 
 
-class Activity(FlowObject):
-    pass
-
-
-class Task(Activity):
+class Task(FlowObject):
     pass

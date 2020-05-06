@@ -10,25 +10,30 @@ import taskIcon from '@iconify/icons-bpmn/task';
 import startEvent from '@iconify/icons-bpmn/start-event';
 import endEvent from '@iconify/icons-bpmn/end-event';
 import userIcon from '@iconify/icons-bpmn/user';
+import intermediateEvent from '@iconify/icons-bpmn/intermediate-event';
+import intermediateEventCatchTimer from '@iconify/icons-bpmn/intermediate-event-catch-timer';
+import intermediateEventCatchCondition from '@iconify/icons-bpmn/intermediate-event-catch-condition';
+import intermediateEventCatchMessage from '@iconify/icons-bpmn/intermediate-event-catch-message';
+// import intermediateEventThrowMessage from '@iconify/icons-bpmn/intermediate-event-throw-message';
+
 
 function Markers(props) {
     const {handleMarkerChange} = props;
   const [selectedMarkers, setSelectedMarkers] = useState({
     "lane" : {marker : "Lane", color : "darkgreen", checked : false, icon : userIcon},
-    "activity" : {marker : "Activity", color : "darkred", checked : false},
     "task" : {marker : "Task", color : "red", checked : false, icon : taskIcon},
     "startevent" : {marker : "Start Event", color : "lime", checked : false, icon : startEvent},
     "endevent" : {marker : "End Event", color : "#442727", checked : false, icon : endEvent},
-    "intermediateevent" : {marker : "Intermediate Event", color : "orange", checked : false},
-    "conditionalintermediateevent" : {marker : "Conditional Event", color : "darkorange", checked : false},
-    "timerintermediateevent" : {marker : "Timer Event", color : "#222831", checked : false},
-    "messageintermediateevent" : {marker : "Message Event", color : "sandybrown", checked : false},
+    "intermediateevent" : {marker : "Intermediate Event", color : "orange", checked : false, icon : intermediateEvent},
+    "conditionalintermediateevent" : {marker : "Conditional Event", color : "darkorange", checked : false, icon : intermediateEventCatchCondition},
+    "timerintermediateevent" : {marker : "Timer Event", color : "#222831", checked : false, icon : intermediateEventCatchTimer},
+    "messageintermediateevent" : {marker : "Message Event", color : "sandybrown", checked : false, icon : intermediateEventCatchMessage},
     "xorsplit" : {marker : "XOR Split", color : "violet", checked : false, icon : gatewayXor},
-    "xorjoin" : {marker : "XOR Join", color : "violet", checked : false},
+    "xorjoin" : {marker : "XOR Join", color : "violet", checked : false, icon : gatewayXor},
     "andsplit" : {marker : "AND Split", color : "#588da8", checked : false, icon : gatewayParallel},
-    "andjoin" : {marker : "AND Join", color : "#588da8", checked : false},
+    "andjoin" : {marker : "AND Join", color : "#588da8", checked : false, icon : gatewayParallel},
     "orsplit" : {marker : "OR Split", color : "#342ead", checked : false, icon : gatewayOr},
-    "orjoin" : {marker : "OR Join", color : "#342ead", checked : false}
+    "orjoin" : {marker : "OR Join", color : "#342ead", checked : false, icon : gatewayOr}
   });
   const [editMarker, setEditMarker] = useState(null);
   const [showAllElements, setShowAllElements] = useState(false);

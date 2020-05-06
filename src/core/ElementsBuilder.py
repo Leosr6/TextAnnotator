@@ -119,10 +119,6 @@ class ElementsBuilder(Base):
     @classmethod
     def create_action_syntax(cls, origin, full_sentence, vphead):
         verb_parts = cls.extract_verb_parts(vphead)
-        # TODO: check if necessary
-        # if isinstance(vphead, str):
-        #     index = Search.find_sentence_index(full_sentence, vphead)
-        # else:
         index = Search.find_sentence_index(full_sentence, vphead)
 
         action = Action(origin, index, " ".join(verb_parts), vphead.label())
@@ -252,17 +248,18 @@ class ElementsBuilder(Base):
                 action.f_specifiers.append(spec)
 
     @classmethod
-    def extract_SBAR_spec(cls, origin, full_sentence, element, vp_head):
-        sbar_list = Search.find_in_tree(vp_head, SBAR, [])
-        vp_index = Search.find_sentence_index(full_sentence, vp_head)
+    def extract_SBAR_spec(cls, origin, full_sentence, element, phrase_head):
+        if phrase_head:
+            sbar_list = Search.find_in_tree(phrase_head, SBAR, [])
+            phrase_index = Search.find_sentence_index(full_sentence, phrase_head)
 
-        for sbar in sbar_list:
-            sbar_index = Search.find_sentence_index(full_sentence, sbar)
+            for sbar in sbar_list:
+                sbar_index = Search.find_sentence_index(full_sentence, sbar)
 
-            if sbar_index > vp_index:
-                spec = Specifier(origin, sbar_index, " ".join(sbar.leaves()))
-                spec.f_type = SBAR
-                element.f_specifiers.append(spec)
+                if sbar_index > phrase_index:
+                    spec = Specifier(origin, sbar_index, " ".join(sbar.leaves()))
+                    spec.f_type = SBAR
+                    element.f_specifiers.append(spec)
 
     @classmethod
     def extract_PP_spec(cls, origin, full_sentence, element, node_index, dependencies):
@@ -275,9 +272,9 @@ class ElementsBuilder(Base):
                 dep_in_tree = Search.find_dep_in_tree(full_sentence, dep['dependent'])
                 phrase_tree = Search.get_full_phrase_tree(dep_in_tree, PP)
                 if phrase_tree:
-                    # TODO: check print
+                    phrase_tree = cls.delete_branches(phrase_tree, (S, SBAR))
                     phrase = " ".join(phrase_tree.leaves())
-                    space_index = phrase.index(" ")
+                    space_index = phrase.find(" ")
                     if space_index >= 0:
                         specific = dep['spec']
                         if specific:
@@ -289,7 +286,6 @@ class ElementsBuilder(Base):
                             obj = cls.create_object(origin, full_sentence, dep['dependent'], dependencies)
                             spec.f_object = obj
                         spec.f_headWord = specific
-                        # TODO: FrameNetWrapper.determineSpecifierFrameElement(element, _sp);
                         element.f_specifiers.append(spec)
 
     @classmethod
@@ -303,7 +299,6 @@ class ElementsBuilder(Base):
                 phrase_tree = Search.get_full_phrase_tree(dep_in_tree, PP)
                 if phrase_tree:
                     phrase_tree = cls.delete_branches(phrase_tree, (S, SBAR))
-                    # TODO: check print
                     phrase = " ".join(phrase_tree.leaves())
                     spec = Specifier(origin, dep['dependent'], phrase)
                     spec.f_type = RCMOD
@@ -315,7 +310,6 @@ class ElementsBuilder(Base):
 
         for pp in pp_list:
             pp_index = Search.find_sentence_index(full_sentence, pp)
-            # TODO: check print
             spec = Specifier(origin, pp_index, " ".join(pp.leaves()))
             spec.f_type = PP
             element.f_specifiers.append(spec)
@@ -327,7 +321,7 @@ class ElementsBuilder(Base):
             parts.append(node[0])
         else:
             for child in node:
-                if child.label() not in (SBAR, NP, ADJP, ADVP, PRN, S) and node.label() != PP:
+                if child.label() not in (SBAR, NP, ADJP, ADVP, PRN) and node.label() != PP:
                     parts.extend(cls.extract_verb_parts(child))
 
         return parts
@@ -426,15 +420,15 @@ class ElementsBuilder(Base):
     @classmethod
     def delete_branches(cls, tree, branches):
         result = deepcopy(tree)
-        cls.delete_branches_recursive(result, branches)
+        cls.delete_branches_recursive(result, result, branches)
         return result
 
     @classmethod
-    def delete_branches_recursive(cls, tree, branches):
+    def delete_branches_recursive(cls, origin, tree, branches):
         for child in tree:
             if not isinstance(child, str):
                 if child.label() in branches:
-                    index = child.treeposition()[1:]
-                    del(tree[index])
+                    index = child.treeposition()
+                    del(origin[index])
                 else:
-                    cls.delete_branches_recursive(child, branches)
+                    cls.delete_branches_recursive(origin, child, branches)

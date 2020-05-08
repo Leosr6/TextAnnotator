@@ -122,6 +122,9 @@ class MetadataGenerator(Base):
                 }
                 sentence["snippetList"].append(snippet)
 
+        for sentence in text.values():
+            sentence["snippetList"].sort(key=lambda snpt: snpt["startIndex"])
+
         return [text[sentence] for sentence in stanford_sentences]
 
     def create_gateways(self):
@@ -160,7 +163,10 @@ class MetadataGenerator(Base):
                     "isExplicit": is_explicit
                 })
 
+            gateway_data["branches"].sort(key=lambda snpt: (snpt["sentenceId"], snpt["startIndex"]))
             gateway_list.append(gateway_data)
+
+        gateway_list.sort(key=lambda gtw: (gtw["branches"][0]["sentenceId"], gtw["branches"][0]["startIndex"]))
 
         return gateway_list
 
@@ -335,12 +341,15 @@ class MetadataGenerator(Base):
             if element not in self.retricted_actions:
                 if not xcomp:
                     for spec in element.f_specifiers:
-                        candidates.append(spec.f_word_index + spec.f_name.count(" "))
+                        if spec.f_word_index > element.f_word_index:
+                            candidates.append(spec.f_word_index + spec.f_name.count(" "))
 
                 if element.f_object:
-                    candidates.append(element.f_object.f_word_index + element.f_object.f_name.count(" "))
-                    for spec in element.f_object.f_specifiers:
-                        candidates.append(spec.f_word_index + spec.f_name.count(" "))
+                    if element.f_object.f_word_index > element.f_word_index:
+                        candidates.append(element.f_object.f_word_index + element.f_object.f_name.count(" "))
+                        for spec in element.f_object.f_specifiers:
+                            if spec.f_word_index > element.f_word_index:
+                                candidates.append(spec.f_word_index + spec.f_name.count(" "))
 
                 if element.f_xcomp:
                     candidates.append(self.get_element_end_index(element.f_xcomp, xcomp=True))

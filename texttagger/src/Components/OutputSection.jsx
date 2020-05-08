@@ -77,7 +77,7 @@ function OutputSection(props) {
             for (var wordIndex = snippet.startIndex -1; wordIndex <= snippet.endIndex -1; wordIndex++) {
               var currentMap = snippetMap[wordIndex];
 
-              if (!currentMap || precedence.indexOf(currentMap.processElementType.toLowerCase()) > precedence.indexOf(elementType)) {
+              if (!currentMap || precedence.indexOf(currentMap.processElementType.toLowerCase()) >= precedence.indexOf(elementType)) {
                 if (!snippet.isBranch || snippet.isExplicit) {
                   snippetMap[wordIndex] = {
                     processElementType : snippet.processElementType,
@@ -124,7 +124,7 @@ function OutputSection(props) {
   }, [metadata, selectedMarkers, textResources])
 
   return (
-      <Card>
+      <Card className="mb-5">
           <CardHeader>
             <div className="d-flex">
               Marked Text

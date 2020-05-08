@@ -36,7 +36,7 @@ class TextAnalyzer(Base):
         self.reference_resolution()
         self.marker_detection()
         self.combine_actions()
-        self.determine_links()
+        # self.determine_links()
         self.build_flows()
 
         return self.f_world
@@ -149,6 +149,7 @@ class TextAnalyzer(Base):
                         if spec.f_name.startswith(indic) and not action.f_preAdvMod:
                             action.f_preAdvMod = indic
                             action.f_preAdvModPos = spec.f_word_index
+                            action.preAdvModFromSpec = True
 
                     if spec.f_name in f_parallelIndicators and not action.f_marker:
                         self.logger.debug("Marking {} with marker {} while".format(action, spec.f_name))

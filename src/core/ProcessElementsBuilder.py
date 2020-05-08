@@ -125,8 +125,14 @@ class ProcessElementsBuilder(Base):
                 source_map.setdefault(node, 0)
                 target_map.setdefault(node, 0)
 
-                if source_map[node] == 0 or (isinstance(node, Gateway) and source_map[node] == 1 and target_map[node] == 1):
-                    self.create_end_event(node)
+                if source_map[node] == 0:
+                    if isinstance(node, Gateway) and node.element.f_direction == JOIN:
+                        for element in node.element.f_multiples:
+                            node = self.to_process_node(element)
+                            if node:
+                                self.create_end_event(node)
+                    else:
+                        self.create_end_event(node)
                 if target_map[node] == 0:
                     if isinstance(node, Event) and node.class_type == INTERMEDIATE_EVENT and node.parent_node:
                         continue
@@ -157,7 +163,7 @@ class ProcessElementsBuilder(Base):
             flow_object.sub_type = None
 
     def create_end_event(self, flow_object):
-        element = flow_object.element.f_multiples[0] if isinstance(flow_object, Gateway) else flow_object.element
+        element = flow_object.element
 
         if WordNetWrapper.is_verb_of_type(element.f_name, END_VERB):
             # A process model can end with a Message event
@@ -372,7 +378,7 @@ class ProcessElementsBuilder(Base):
     def is_event_action(action):
         # Checking if the verb is in the past participle
         if action.label == VBN:
-            if action.f_preAdvMod or action.f_marker:
+            if (action.f_preAdvMod and not action.preAdvModFromSpec) or action.f_marker:
                 sentence = str(action.f_sentence).lower()
                 min_index = action.f_preAdvModPos if action.f_preAdvMod else action.f_markerPos
                 # Checking if the sentence contains any indicators that the activity has finished

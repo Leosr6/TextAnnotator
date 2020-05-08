@@ -8,7 +8,8 @@ body {
 }
 
 html, body, #root, #root>div {
-  height: 100%
+  height: 100%;
+  overflow: auto;
 }
 
 code {

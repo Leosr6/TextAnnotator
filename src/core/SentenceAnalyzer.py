@@ -43,6 +43,7 @@ class SentenceAnalyzer(Base):
 
     def analyze_recursive(self, main_sentence, dependencies):
 
+        main_sentence = deepcopy(main_sentence)
         sub_sentence_count = self.determine_sub_sentence_count(main_sentence)
 
         if sub_sentence_count == 0:
@@ -53,12 +54,11 @@ class SentenceAnalyzer(Base):
                                                              dependencies)
             self.analyze_recursive(sub_sentence, filtered_dependencies)
 
-            sentence_copy = deepcopy(self.f_full_sentence)
             sub_sentence_index = sub_sentence.treeposition()
-            del(sentence_copy[sub_sentence_index])
+            del(main_sentence[sub_sentence_index])
             deps = [dep for dep in dependencies if dep['dep'] == RCMOD or dep not in filtered_dependencies]
             if len(Search.find_dependencies(deps, (NSUBJ, AGENT, NSUBJPASS, DOBJ))) > 0:
-                self.extract_elements(sentence_copy[0], deps)
+                self.extract_elements(main_sentence, deps)
 
         else:
             sub_sentences = self.find_sub_sentences(main_sentence)
@@ -484,7 +484,7 @@ class SentenceAnalyzer(Base):
 
         result = Search.count_children(sentence, self.f_sentenceTags)
 
-        if result == 1 and sentence.label() == "WHNP":
+        if result == 1 and sentence[0].label() == WHNP:
             result -= 1
 
         for child in sentence:
@@ -517,11 +517,11 @@ class SentenceAnalyzer(Base):
             if not action or not action.f_xcomp or start_index > action.f_xcomp.f_word_index or end_index < action.f_xcomp.f_word_index:
                 self.analyze_recursive(head, self.filter_dependencies(head, dependencies))
                 return
-
-        #if head.label() in (PP, VP) or (head.label() == NP and is_np):
-        for child in head:
-            if not isinstance(child, str):
-                self.check_sub_sentences(child, dependencies, obj, is_np)
+        else:
+            if head.label() in (PP, VP, NP, S):
+                for child in head:
+                    if not isinstance(child, str):
+                        self.check_sub_sentences(child, dependencies, obj, is_np)
 
     @staticmethod
     def remove_examples(verbs):

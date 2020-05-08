@@ -73,6 +73,7 @@ CD = "CD"
 IOBJ = "IOBJ"
 VBN = "VBN"
 VB = "VB"
+WHNP = "WHNP"
 
 """
     TODO: write description

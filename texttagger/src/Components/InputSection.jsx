@@ -55,7 +55,7 @@ function InputSection(props) {
 
   return (
       <Card className="w-75" style={{ height: "85%" }}>
-          <CardHeader>Write any process model or upload a text file</CardHeader>
+          <CardHeader>Write a process description or upload a text file</CardHeader>
           <CardBody className="ml-3">
               <Nav tabs>
                   <NavItem>

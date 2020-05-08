@@ -18,6 +18,8 @@ class WordNetWrapper(Base):
             nltk.download("wordnet")
 
         for word in f_acceptedAMODforLoops:
+            self.accepted_forward_links.append(word)
+
             synsets = wn.synsets(word, POS_ADJECTIVE)
             for synset in synsets:
                 self.accepted_AMOD_list.extend(self.get_lemmas(synset))
@@ -27,6 +29,8 @@ class WordNetWrapper(Base):
                 self.accepted_AMOD_list.extend(self.get_lemmas(synset))
 
         for word in f_acceptedForForwardLink:
+            self.accepted_forward_links.append(word)
+
             synsets = wn.synsets(word, POS_ADJECTIVE)
             for synset in synsets:
                 self.accepted_forward_links.extend(self.get_lemmas(synset))

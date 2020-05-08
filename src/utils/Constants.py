@@ -211,7 +211,7 @@ f_weakVerbToThirdPerson = {"be": "is", "have": "has", "do": "does"}
     WordNet Wrapper
 """
 
-f_acceptedForForwardLink = ["finally"]
+f_acceptedForForwardLink = ["finally", "in any case"]
 f_personCorrectorList = ["resource provisioning", "customer service", "support", "support office", "support officer", "client service back office",
                          "master", "masters", "assembler ag", "acme ag", "acme financial accounting", "secretarial office", "office", "registry",
                          "head", "storehouse", "atm", "crs", "company", "garage", "kitchen", "department", "ec", "sp", "mpo", "mpoo", "mpon", "msp"

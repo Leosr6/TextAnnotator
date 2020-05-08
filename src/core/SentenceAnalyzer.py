@@ -74,8 +74,8 @@ class SentenceAnalyzer(Base):
 
         for dep in dependencies:
             if dep['dep'] == RCMOD or \
-                    (start_index <= dep['governor'] <= end_index
-                     and start_index <= dep['dependent'] <= end_index):
+                    (start_index <= dep['governor'] < end_index
+                     and start_index <= dep['dependent'] < end_index):
                 filtered_deps.append(dep)
 
         return filtered_deps
@@ -500,27 +500,27 @@ class SentenceAnalyzer(Base):
 
     def check_sub_sentences(self, head, dependencies, obj, is_np):
 
-        if head.label() == SBAR:
-            leaves = head.leaves()
-            start_index = Search.find_sentence_index(self.f_full_sentence, head)
-            end_index = start_index + len(leaves)
-            ccomps = Search.find_dependencies(dependencies, CCOMP)
+        if head and not isinstance(head, str):
+            if head.label() == SBAR:
+                leaves = head.leaves()
+                start_index = Search.find_sentence_index(self.f_full_sentence, head)
+                end_index = start_index + len(leaves)
+                ccomps = Search.find_dependencies(dependencies, CCOMP)
 
-            for ccomp in ccomps:
-                if start_index < ccomp['dependent'] < end_index:
-                    complms = Search.find_dependencies(dependencies, COMPLM)
-                    for complm in complms:
-                        if complm['governor'] == ccomp['dependent'] and complm['dependentGloss'] == THAT:
-                            return
+                for ccomp in ccomps:
+                    if start_index < ccomp['dependent'] < end_index:
+                        complms = Search.find_dependencies(dependencies, COMPLM)
+                        for complm in complms:
+                            if complm['governor'] == ccomp['dependent'] and complm['dependentGloss'] == THAT:
+                                return
 
-            action = obj if isinstance(obj, Action) else None
-            if not action or not action.f_xcomp or start_index > action.f_xcomp.f_word_index or end_index < action.f_xcomp.f_word_index:
-                self.analyze_recursive(head, self.filter_dependencies(head, dependencies))
-                return
-        else:
-            if head.label() in (PP, VP, NP, S):
-                for child in head:
-                    if not isinstance(child, str):
+                action = obj if isinstance(obj, Action) else None
+                if not action or not action.f_xcomp or start_index > action.f_xcomp.f_word_index or end_index < action.f_xcomp.f_word_index:
+                    self.analyze_recursive(head, self.filter_dependencies(head, dependencies))
+                    return
+            else:
+                if head.label() in (PP, VP, NP, S):
+                    for child in head:
                         self.check_sub_sentences(child, dependencies, obj, is_np)
 
     @staticmethod

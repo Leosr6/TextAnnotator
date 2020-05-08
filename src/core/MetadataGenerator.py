@@ -2,6 +2,7 @@ from core.Base import Base
 from data.BPMNElements import *
 from data.TextElements import *
 from data.SentenceElements import *
+from utils import Search
 from utils.Constants import *
 from copy import copy
 
@@ -155,10 +156,10 @@ class MetadataGenerator(Base):
                         "isExplicit": is_explicit
                     })
             else:
-                element, index, is_explicit = self.get_join_index(gateway)
+                element, start_index, end_index, is_explicit = self.get_join_index(gateway)
                 gateway_data["branches"].append({
-                    "startIndex": index,
-                    "endIndex": index,
+                    "startIndex": start_index,
+                    "endIndex": end_index,
                     "sentenceId": element.f_sentence.f_id,
                     "isExplicit": is_explicit
                 })
@@ -172,18 +173,32 @@ class MetadataGenerator(Base):
 
     def get_join_index(self, gateway):
         explicit = False
+        start_index = None
+        end_index = None
         element = self.get_next_element(gateway)
 
-        if element and element.f_preAdvMod in WordNetWrapper.accepted_forward_links:
-            index = element.f_preAdvModPos
-            explicit = True
-        else:
-            branches = gateway.element.f_multiples
-            branches.sort(key=lambda action: (action.f_sentence.f_id, action.f_word_index))
-            element = branches[-1]
-            index = self.get_element_end_index(element) + 1
+        branches = gateway.element.f_multiples
+        branches.sort(key=lambda action: (action.f_sentence.f_id, action.f_word_index))
 
-        return element, index, explicit
+        if element:
+            sentence = element.f_sentence.f_tree.leaves()
+            last_branch = branches[-1]
+            for indicator in WordNetWrapper.accepted_forward_links:
+                part = indicator.split()
+                indicator_index = Search.find_array_part(sentence, part)
+                if indicator_index != -1:
+                    if element.f_word_index > indicator_index:
+                        if (element.f_sentence.f_id, indicator_index) > (last_branch.f_sentence.f_id, self.get_element_end_index(last_branch)):
+                            start_index = indicator_index
+                            end_index = indicator_index + len(part) - 1
+                            explicit = True
+
+        if not explicit:
+            element = branches[-1]
+            start_index = self.get_element_end_index(element) + 1
+            end_index = start_index
+
+        return element, start_index, end_index, explicit
 
     def get_next_element(self, source):
         for edge in self.model_builder.f_model.edges:
@@ -280,7 +295,7 @@ class MetadataGenerator(Base):
             element_to_mark = self.find_branch_element(node, element)
             start_index = self.get_element_start_index(element_to_mark)
             end_index = self.get_element_end_index(element_to_mark)
-            explicit = node.type == EXCLUSIVE_GATEWAY
+            explicit = False
 
         return start_index, end_index, explicit
 

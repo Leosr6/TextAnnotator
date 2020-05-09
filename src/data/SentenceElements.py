@@ -65,7 +65,8 @@ class Action(Element):
         self.f_preAdvMod = None
         self.f_preAdvModPos = -1
         self.preAdvModFromSpec = False
-        self.f_prepc = None
+        self.pcomp = None
+        self.pcompPos = -1
         self.f_negated = False
         self.f_link = None
         self.f_linkType = None

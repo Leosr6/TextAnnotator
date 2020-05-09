@@ -6,8 +6,8 @@ import arrowBackCircleOutline from '@iconify/icons-ion/arrow-back-circle-outline
 import userIcon from '@iconify/icons-bpmn/user';
 
 const precedence = ["lane", "startevent", "endevent", "xorjoin", "andjoin", "orjoin", "xorsplit", "andsplit", "orsplit",
-                    "conditionalintermediateevent", "timerintermediateevent", "messageintermediateevent", "intermediateevent",
-                    "task"]
+                    "errorintermediateevent", "conditionalintermediateevent", "timerintermediateevent", "messageintermediateevent", 
+                    "intermediateevent", "task"]
 const stdColor = "black"
 
 function OutputSection(props) {
@@ -74,7 +74,7 @@ function OutputSection(props) {
           if (markerData && markerData.checked) {
             var resource = textResources.find((resource) => snippet.resourceId === resource.id);
 
-            for (var wordIndex = snippet.startIndex -1; wordIndex <= snippet.endIndex -1; wordIndex++) {
+            for (var wordIndex = snippet.startIndex; wordIndex <= snippet.endIndex; wordIndex++) {
               var currentMap = snippetMap[wordIndex];
 
               if (!currentMap || precedence.indexOf(currentMap.processElementType.toLowerCase()) >= precedence.indexOf(elementType)) {
@@ -86,11 +86,11 @@ function OutputSection(props) {
                     lane : resource ? resource.name : ""
                   };
                 }
-                if (wordIndex === snippet.startIndex -1 && !snippet.hideIcon)
+                if (wordIndex === snippet.startIndex && !snippet.hideIcon)
                   iconMap[wordIndex] = markerData.icon;
               }
 
-              if (wordIndex === snippet.startIndex -1 && snippet.isBranch) {
+              if (wordIndex === snippet.startIndex && snippet.isBranch) {
                 markerMap[wordIndex] = snippet.processElementType.replace("SPLIT", "BRANCH");
               }
             }

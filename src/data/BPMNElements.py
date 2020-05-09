@@ -76,7 +76,6 @@ class Event(FlowObject):
         super().__init__(element)
         self.class_type = event_type
         self.class_sub_type = sub_type
-        self.parent_node = None
         self.sub_type = None
 
 

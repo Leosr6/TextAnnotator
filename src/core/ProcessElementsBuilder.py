@@ -75,14 +75,12 @@ class ProcessElementsBuilder(Base):
                 sequence_flow = SequenceFlow(node, self.to_process_node(flow.f_multiples[0]))
                 self.f_model.edges.append(sequence_flow)
             elif flow.f_type == EXCEPTION:
-                exception_event = Event(flow.f_single, INTERMEDIATE_EVENT, ERROR_EVENT)
+                exception_event = Event(flow.f_multiples[0], INTERMEDIATE_EVENT, ERROR_EVENT)
                 self.f_model.nodes.append(exception_event)
                 task = self.to_process_node(flow.f_single)
-                exception_event.parent_node = task
                 self.add_to_same_lane(task, exception_event)
-
-                sequence_flow = SequenceFlow(exception_event,
-                                             self.to_process_node(flow.f_multiples[0]))
+                self.f_model.nodes.remove(self.to_process_node(flow.f_multiples[0]))
+                sequence_flow = SequenceFlow(task, exception_event)
                 self.f_model.edges.append(sequence_flow)
             elif flow.f_direction == SPLIT:
                 if len(flow.f_multiples) == 1:
@@ -131,7 +129,9 @@ class ProcessElementsBuilder(Base):
                 target_map.setdefault(node, 0)
 
                 if source_map[node] == 0:
-                    if isinstance(node, Gateway) and node.element.f_direction == JOIN:
+                    if isinstance(node, Event) and node.class_sub_type == ERROR_EVENT:
+                        continue
+                    elif isinstance(node, Gateway) and node.element.f_direction == JOIN:
                         transformed_elements = 0
                         branches = node.element.f_multiples
                         for element in branches:
@@ -144,10 +144,7 @@ class ProcessElementsBuilder(Base):
                     else:
                         self.check_end_event(node)
                 if target_map[node] == 0:
-                    if isinstance(node, Event) and node.class_type == INTERMEDIATE_EVENT and node.parent_node:
-                        continue
-                    else:
-                        self.check_start_event(node)
+                    self.check_start_event(node)
 
     def process_meta_activities(self):
         for node in self.f_model.nodes:

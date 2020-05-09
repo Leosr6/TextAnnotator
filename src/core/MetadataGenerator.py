@@ -56,13 +56,8 @@ class MetadataGenerator(Base):
                 if flow.f_direction == SPLIT:
                     for branch in flow.f_multiples:
                         action_branch_map.setdefault((branch.f_sentence.f_id, branch.f_word_index), []).append(branch)
-                        if flow.f_type == CHOICE:
+                        if flow.f_type == CHOICE and branch.f_marker not in (OTHERWISE, WHEREAS) and branch.f_preAdvMod not in (OTHERWISE, WHEREAS):
                             branch_actions.add(branch)
-                else:
-                    if flow.f_type == CHOICE:
-                        for branch in flow.f_multiples:
-                            if branch in branch_actions:
-                                branch_actions.remove(branch)
 
         for branch_list in action_branch_map.values():
             if len(branch_list) > 1:
@@ -108,8 +103,8 @@ class MetadataGenerator(Base):
             sentence = text.get(element.f_sentence)
             if sentence:
                 snippet = {
-                    "startIndex": self.get_element_start_index(element),
-                    "endIndex": self.get_element_end_index(element),
+                    "startIndex": self.get_element_start_index(element) - 1,
+                    "endIndex": self.get_element_end_index(element) - 1,
                     "processElementId": self.element_id_map[node],
                     "processElementType": self.get_node_type(node),
                     "resourceId": self.get_resource_id(node),
@@ -144,16 +139,16 @@ class MetadataGenerator(Base):
                 for element in gateway.element.f_multiples:
                     start_index, end_index, is_explicit = self.get_split_index(gateway, element)
                     gateway_data["branches"].append({
-                        "startIndex": start_index,
-                        "endIndex": end_index,
+                        "startIndex": start_index - 1,
+                        "endIndex": end_index - 1,
                         "sentenceId": element.f_sentence.f_id,
                         "isExplicit": is_explicit
                     })
             else:
                 element, start_index, end_index, is_explicit = self.get_join_index(gateway)
                 gateway_data["branches"].append({
-                    "startIndex": start_index,
-                    "endIndex": end_index,
+                    "startIndex": start_index - 1,
+                    "endIndex": end_index - 1,
                     "sentenceId": element.f_sentence.f_id,
                     "isExplicit": is_explicit
                 })
@@ -322,6 +317,9 @@ class MetadataGenerator(Base):
             candidates.append(element.f_word_index)
         elif isinstance(element, Action):
             candidates.append(element.f_word_index)
+
+            if element.pcomp:
+                candidates.append(element.pcompPos)
 
             if element.f_aux:
                 candidates[0] -= 1

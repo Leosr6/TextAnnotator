@@ -109,13 +109,14 @@ class TextAnalyzer(Base):
                         action.f_preAdvMod = value
                         action.f_preAdvModPos = dep['dependent']
 
-            markers = Search.find_dependencies(deps, PREPC)
+            markers = Search.find_dependencies(deps, PCOMP)
             for dep in markers:
                 action = self.find_node_action(dep['dependent'], analyzed_sentence.f_actions, deps)
                 if action:
-                    value = dep['spec']
+                    value = dep['governorGloss']
                     self.logger.debug("Marking {} with prepc {}".format(action, value))
-                    action.f_prepc = value
+                    action.pcomp = value
+                    action.pcompPos = dep['governor']
 
             markers = Search.find_dependencies(deps, COMPLM)
             for dep in markers:
@@ -570,7 +571,7 @@ class TextAnalyzer(Base):
                 self.f_world.add_flow(dummy_flow)
 
             if action.f_marker in (WHEREAS, IF) or action.f_preAdvMod == OTHERWISE:
-                if action.f_prepc == EXCEPT:
+                if action.pcomp == EXCEPT:
                     flow.f_type = EXCEPTION
                     self.clear_split(open_split)
                 else:

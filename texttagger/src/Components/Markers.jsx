@@ -14,6 +14,7 @@ import intermediateEvent from '@iconify/icons-bpmn/intermediate-event';
 import intermediateEventCatchTimer from '@iconify/icons-bpmn/intermediate-event-catch-timer';
 import intermediateEventCatchCondition from '@iconify/icons-bpmn/intermediate-event-catch-condition';
 import intermediateEventCatchMessage from '@iconify/icons-bpmn/intermediate-event-catch-message';
+import intermediateEventCatchError from '@iconify/icons-bpmn/intermediate-event-catch-error';
 // import intermediateEventThrowMessage from '@iconify/icons-bpmn/intermediate-event-throw-message';
 
 
@@ -24,8 +25,9 @@ function Markers(props) {
     "task" : {marker : "Task", color : "red", checked : false, icon : taskIcon},
     "startevent" : {marker : "Start Event", color : "lime", checked : false, icon : startEvent},
     "endevent" : {marker : "End Event", color : "#442727", checked : false, icon : endEvent},
+    "errorintermediateevent" : {marker : "Error Event", color : "#d1d63b", checked : false, icon : intermediateEventCatchError},
     "intermediateevent" : {marker : "Intermediate Event", color : "orange", checked : false, icon : intermediateEvent},
-    "conditionalintermediateevent" : {marker : "Conditional Event", color : "darkorange", checked : false, icon : intermediateEventCatchCondition},
+    "conditionalintermediateevent" : {marker : "Conditional Event", color : "#b36200", checked : false, icon : intermediateEventCatchCondition},
     "timerintermediateevent" : {marker : "Timer Event", color : "#222831", checked : false, icon : intermediateEventCatchTimer},
     "messageintermediateevent" : {marker : "Message Event", color : "sandybrown", checked : false, icon : intermediateEventCatchMessage},
     "xorsplit" : {marker : "XOR Split", color : "violet", checked : false, icon : gatewayXor},

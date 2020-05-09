@@ -1,6 +1,5 @@
 from copy import copy
 from core.Base import Base
-from utils import Processing
 from utils.Constants import *
 from data.BPMNElements import *
 from data.SentenceElements import *
@@ -20,14 +19,14 @@ class ProcessElementsBuilder(Base):
         self.f_last_pool = None
 
     def create_process_model(self):
-        self.f_main_pool = Pool("Pool")
+        self.f_main_pool = Pool()
         self.f_model.nodes.append(self.f_main_pool)
 
         self.create_actions()
         self.build_sequence_flows()
         self.remove_dummies()
         self.finish_dangling_ends()
-        # self.process_meta_activities()
+        self.process_meta_activities()
 
         if len(self.f_main_pool.process_nodes) == 0:
             self.f_model.remove_node(self.f_main_pool)
@@ -66,8 +65,14 @@ class ProcessElementsBuilder(Base):
     def build_sequence_flows(self):
         for flow in self.f_world.f_flows:
             if flow.f_type == SEQUENCE and len(flow.f_multiples) == 1:
-                sequence_flow = SequenceFlow(self.to_process_node(flow.f_single),
-                                             self.to_process_node(flow.f_multiples[0]))
+                node = self.to_process_node(flow.f_single)
+                timer_event = self.check_timer_event(flow.f_single)
+                if timer_event:
+                    self.f_model.nodes.append(timer_event)
+                    self.add_to_same_lane(node, timer_event)
+                    sequence_flow = SequenceFlow(timer_event, node)
+                    self.f_model.edges.append(sequence_flow)
+                sequence_flow = SequenceFlow(node, self.to_process_node(flow.f_multiples[0]))
                 self.f_model.edges.append(sequence_flow)
             elif flow.f_type == EXCEPTION:
                 exception_event = Event(flow.f_single, INTERMEDIATE_EVENT, ERROR_EVENT)
@@ -127,63 +132,62 @@ class ProcessElementsBuilder(Base):
 
                 if source_map[node] == 0:
                     if isinstance(node, Gateway) and node.element.f_direction == JOIN:
-                        for element in node.element.f_multiples:
-                            node = self.to_process_node(element)
-                            if node:
-                                self.create_end_event(node)
+                        transformed_elements = 0
+                        branches = node.element.f_multiples
+                        for element in branches:
+                            branch = self.to_process_node(element)
+                            if branch and self.check_end_event(branch):
+                                transformed_elements += 1
+                        # Only keep joins with more than 1 active branches
+                        if len(branches) - transformed_elements <= 1:
+                            self.remove_node(node)
                     else:
-                        self.create_end_event(node)
+                        self.check_end_event(node)
                 if target_map[node] == 0:
                     if isinstance(node, Event) and node.class_type == INTERMEDIATE_EVENT and node.parent_node:
                         continue
                     else:
-                        self.create_start_event(node)
+                        self.check_start_event(node)
 
     def process_meta_activities(self):
-        for action in self.f_world.f_actions:
-            if action.f_actorFrom and action.f_actorFrom.f_metaActor:
-                if WordNetWrapper.is_verb_of_type(action.f_name, END_VERB):
-                    node = self.f_action_flow_map[action]
-                    successors = self.f_model.get_successors(node)
-                    self.remove_node(node)
-                    if len(successors) == 1 and isinstance(successors[0], Event) and successors[0].class_type == END_EVENT:
-                        if action.f_name == TERMINATE:
-                            successors[0].class_sub_type = TERMINATE_EVENT
-                elif WordNetWrapper.is_verb_of_type(action.f_name, START_VERB):
-                    node = self.f_action_flow_map[action]
-                    predecessors = self.f_model.get_predecessors(node)
-                    if len(predecessors) == 1 and isinstance(predecessors[0], Event) and predecessors[0].class_type == START_EVENT:
-                        self.remove_node(node)
+        for node in self.f_model.nodes:
+            element = node.element
+            if isinstance(element, Action):
+                if element.f_actorFrom and element.f_actorFrom.f_metaActor:
+                    self.check_end_event(node)
+                    self.check_duplicated_start(node)
 
-    def create_start_event(self, flow_object):
+    def check_start_event(self, node):
         # A process model can start with a Message event
-        if isinstance(flow_object, Event) and flow_object.class_sub_type != MESSAGE_EVENT:
-            flow_object.class_type = START_EVENT
-            flow_object.class_sub_type = None
-            flow_object.sub_type = None
+        if isinstance(node, Event) and node.class_sub_type not in (MESSAGE_EVENT, TIMER_EVENT):
+            node.class_type = START_EVENT
+            node.class_sub_type = None
+            node.sub_type = None
 
-    def create_end_event(self, flow_object):
-        element = flow_object.element
+        return False
+
+    def check_end_event(self, node):
+        element = node.element
 
         if WordNetWrapper.is_verb_of_type(element.f_name, END_VERB):
             # A process model can end with a Message event
-            if not isinstance(flow_object, Event) or flow_object.class_sub_type != MESSAGE_EVENT:
-                sequence_flows = [edge for edge in self.f_model.edges if edge.target == flow_object]
-                end_event = Event(element, END_EVENT)
-                self.f_model.nodes.append(end_event)
-                self.add_to_same_lane(flow_object, end_event)
-                for sf in sequence_flows:
-                    sf.target = end_event
-                self.f_model.remove_node(flow_object)
+            if isinstance(node, Event):
+                if node.class_type == END_EVENT or (node.class_sub_type == MESSAGE_EVENT and node.sub_type == THROWING_EVENT):
+                    return False
+            self.transform_end_event(node)
+            return True
+
+        return False
+
+    def check_duplicated_start(self, node):
+        element = node.element
+
+        if WordNetWrapper.is_verb_of_type(element.f_name, START_VERB):
+            predecessors = self.f_model.get_predecessors(node)
+            if len(predecessors) == 1 and isinstance(predecessors[0], Event) and predecessors[0].class_type == START_EVENT:
+                self.remove_node(node)
 
     def create_event_node(self, action):
-        for spec in action.f_specifiers:
-            for word in spec.f_name.split(" "):
-                if WordNetWrapper.is_time_period(word):
-                    timer_event = Event(action, INTERMEDIATE_EVENT, TIMER_EVENT)
-                    timer_event.text = spec.f_name
-                    return timer_event
-
         if WordNetWrapper.is_verb_of_type(action.f_name, SEND_VERB) or WordNetWrapper.is_verb_of_type(action.f_name, RECEIVE_VERB):
             if not action.f_actorFrom:
                 message_event = Event(action, INTERMEDIATE_EVENT, MESSAGE_EVENT)
@@ -195,6 +199,12 @@ class ProcessElementsBuilder(Base):
             return Event(action, INTERMEDIATE_EVENT, CONDITIONAL_EVENT)
 
         return Event(action, INTERMEDIATE_EVENT)
+
+    def check_timer_event(self, action):
+        for spec in action.f_specifiers:
+            for word in spec.f_name.split():
+                if word not in falseTimePeriod and WordNetWrapper.is_time_period(word):
+                    return Event(spec, INTERMEDIATE_EVENT, TIMER_EVENT)
 
     def get_lane(self, actor):
         subject = actor.f_subjectRole
@@ -350,13 +360,6 @@ class ProcessElementsBuilder(Base):
             text += spec.f_name
         return text
 
-    def can_be_transformed(self, action):
-        if action.f_object and not Processing.is_unreal_actor(action.f_object) \
-                and not action.f_object.f_needsResolve and self.has_hidden_action(action.f_object):
-            return True
-
-        return action.f_actorFrom and Processing.is_unreal_actor(action.f_actorFrom) and self.has_hidden_action(action.f_actorFrom)
-
     @staticmethod
     def has_hidden_action(obj):
         can_be_gerund = False
@@ -391,18 +394,17 @@ class ProcessElementsBuilder(Base):
 
         return False
 
-    def transform_to_action(self, obj):
-        text = ""
-        for word in obj.f_name.split():
-            verb = WordNetWrapper.derive_verb(word)
-            if verb:
-                text += verb
-                break
-        for spec in obj.get_specifiers(PP):
-            if spec.startswith(OF) and spec.f_object:
-                text += " " + self.get_name(spec.f_object, True, 1, False)
+    def transform_end_event(self, node):
 
-        return text
+        end_event = Event(node.element, END_EVENT)
+        self.f_model.nodes.append(end_event)
+        self.add_to_same_lane(node, end_event)
+
+        for edge in self.f_model.edges:
+            if edge.target == node:
+                edge.target = end_event
+
+        self.remove_node(node)
 
     @staticmethod
     def consider_phrase(spec):

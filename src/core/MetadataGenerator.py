@@ -51,9 +51,7 @@ class MetadataGenerator(Base):
 
         action_branch_map = {}
         for node in self.model_builder.f_model.nodes:
-            if isinstance(node, Lane):
-                nodes.add(node)
-            elif isinstance(node, Gateway):
+            if isinstance(node, Gateway):
                 flow = node.element
                 if flow.f_direction == SPLIT:
                     for branch in flow.f_multiples:
@@ -75,15 +73,11 @@ class MetadataGenerator(Base):
         self.branch_actions = branch_actions
         ignored_actions.update(branch_actions)
 
-        for edge in self.model_builder.f_model.edges:
-            if isinstance(edge.source, Gateway):
-                gateways.add(edge.source)
-            elif edge.source.element not in ignored_actions:
-                nodes.add(edge.source)
-            if isinstance(edge.target, Gateway):
-                gateways.add(edge.target)
-            elif edge.target.element not in ignored_actions:
-                nodes.add(edge.target)
+        for node in self.model_builder.f_model.nodes:
+            if isinstance(node, Gateway):
+                gateways.add(node)
+            elif not isinstance(node, Pool) and node.element not in ignored_actions:
+                nodes.add(node)
 
         self.process_nodes = nodes
         self.process_gateways = gateways
@@ -322,6 +316,8 @@ class MetadataGenerator(Base):
             candidates.append(element.f_word_index - det)
             for spec in element.f_specifiers:
                 candidates.append(spec.f_word_index - det)
+        elif isinstance(element, Specifier):
+            candidates.append(element.f_word_index)
         elif isinstance(element, DummyAction):
             candidates.append(element.f_word_index)
         elif isinstance(element, Action):
@@ -345,6 +341,8 @@ class MetadataGenerator(Base):
             candidates.append(element.f_word_index)
             for spec in element.f_specifiers:
                 candidates.append(spec.f_word_index)
+        elif isinstance(element, Specifier):
+            candidates.append(element.f_word_index + element.f_name.count(" "))
         elif isinstance(element, DummyAction):
             candidates.append(element.f_word_index)
         elif isinstance(element, Action):

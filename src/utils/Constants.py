@@ -2,10 +2,6 @@
     All the explanation of the labels are established as per the
     Stanford Dependencies documentation on:
     https://nlp.stanford.edu/software/dependencies_manual.pdf
-
-    The labels were all mapped to the Universal Dependencies format
-    as per table 2 of the documentation on:
-    https://nlp.stanford.edu/pubs/USD_LREC14_paper_camera_ready.pdf
 """
 
 # A nominal subject is a noun phrase which is the syntactic subject of a clause
@@ -57,7 +53,9 @@ DIRECT = "direct"
 
 
 """
-    TODO: write description
+    Penn Treebank II Tags
+    Extracted from:
+    https://web.archive.org/web/20130517134339/http://bulba.sdsu.edu/jeanette/thesis/PennTags.html
 """
 
 ROOT = "ROOT"
@@ -191,6 +189,7 @@ f_parallelIndicators = ["while", "meanwhile", "in parallel", "concurrently", "me
 f_frequencyWords = ["usually", "normally", "often", "frequently", "sometimes", "occasionally", "rarely", "seldom"]
 f_wantedDeterminers = ["a", "an", "no", "the"]
 finishedIndicators = ["when", "whenever", "once", "as soon as", "after"]
+falseTimePeriod = ["second"]
 
 """
     TODO: write description

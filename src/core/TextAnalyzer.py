@@ -550,9 +550,8 @@ class TextAnalyzer(Base):
             self.clear_split(open_split)
 
         if len(came_from) == 0:
-            came_from.append(action)
-            flow.f_single = action
-        elif len(came_from) >= 1:
+            self.create_dummy_node(came_from, flow)
+        if len(came_from) >= 1:
             last_flow_added = self.f_world.f_lastFlowAdded
 
             if last_flow_added:

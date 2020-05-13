@@ -109,15 +109,6 @@ class TextAnalyzer(Base):
                         action.f_preAdvMod = value
                         action.f_preAdvModPos = dep['dependent']
 
-            markers = Search.find_dependencies(deps, PCOMP)
-            for dep in markers:
-                action = self.find_node_action(dep['dependent'], analyzed_sentence.f_actions, deps)
-                if action:
-                    value = dep['governorGloss']
-                    self.logger.debug("Marking {} with prepc {}".format(action, value))
-                    action.pcomp = value
-                    action.pcompPos = dep['governor']
-
             markers = Search.find_dependencies(deps, COMPLM)
             for dep in markers:
                 if dep['dependentGloss'] != THAT:
@@ -571,24 +562,20 @@ class TextAnalyzer(Base):
                 self.f_world.add_flow(dummy_flow)
 
             if action.f_marker in (WHEREAS, IF) or action.f_preAdvMod == OTHERWISE:
-                if action.pcomp == EXCEPT:
-                    flow.f_type = EXCEPTION
-                    self.clear_split(open_split)
-                else:
-                    if self.f_last_split or action.f_marker == WHEREAS or action.f_preAdvMod == OTHERWISE:
-                        if not self.f_last_split:
-                            self.f_last_split = self.f_world.f_lastFlowAdded
-                        open_split.clear()
-                        open_split.extend(self.get_ends(self.f_last_split.f_multiples))
-                        self.f_last_split.f_multiples.append(action)
-                        came_from.clear()
-                        came_from.append(action)
-                        if action.f_marker == WHEREAS:
-                            came_from.extend(open_split)
-                            self.clear_split(open_split)
-                        return
-                    flow.f_type = CHOICE
-                    self.f_last_split = flow
+                if self.f_last_split or action.f_marker != IF:
+                    if not self.f_last_split:
+                        self.f_last_split = self.f_world.f_lastFlowAdded
+                    open_split.clear()
+                    open_split.extend(self.get_ends(self.f_last_split.f_multiples))
+                    self.f_last_split.f_multiples.append(action)
+                    came_from.clear()
+                    came_from.append(action)
+                    if action.f_marker == WHEREAS:
+                        came_from.extend(open_split)
+                        self.clear_split(open_split)
+                    return
+                flow.f_type = CHOICE
+                self.f_last_split = flow
 
                 flow.f_single = came_from[0]
                 flow.f_multiples = [action]

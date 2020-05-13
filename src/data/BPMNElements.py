@@ -72,11 +72,11 @@ class Pool(Cluster):
 
 class Event(FlowObject):
 
-    def __init__(self, element, event_type=None, sub_type=None):
+    def __init__(self, element, event_type="", sub_type=""):
         super().__init__(element)
         self.class_type = event_type
         self.class_sub_type = sub_type
-        self.sub_type = None
+        self.class_spec = None
 
 
 class Gateway(FlowObject):

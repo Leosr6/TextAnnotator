@@ -74,14 +74,6 @@ class ProcessElementsBuilder(Base):
                     self.f_model.edges.append(sequence_flow)
                 sequence_flow = SequenceFlow(node, self.to_process_node(flow.f_multiples[0]))
                 self.f_model.edges.append(sequence_flow)
-            elif flow.f_type == EXCEPTION:
-                exception_event = Event(flow.f_multiples[0], INTERMEDIATE_EVENT, ERROR_EVENT)
-                self.f_model.nodes.append(exception_event)
-                task = self.to_process_node(flow.f_single)
-                self.add_to_same_lane(task, exception_event)
-                self.f_model.nodes.remove(self.to_process_node(flow.f_multiples[0]))
-                sequence_flow = SequenceFlow(task, exception_event)
-                self.f_model.edges.append(sequence_flow)
             elif flow.f_direction == SPLIT:
                 if len(flow.f_multiples) == 1:
                     event = self.to_process_node(flow.f_multiples[0])
@@ -129,9 +121,7 @@ class ProcessElementsBuilder(Base):
                 target_map.setdefault(node, 0)
 
                 if source_map[node] == 0:
-                    if isinstance(node, Event) and node.class_sub_type == ERROR_EVENT:
-                        continue
-                    elif isinstance(node, Gateway) and node.element.f_direction == JOIN:
+                    if isinstance(node, Gateway) and node.element.f_direction == JOIN:
                         transformed_elements = 0
                         branches = node.element.f_multiples
                         for element in branches:
@@ -159,7 +149,7 @@ class ProcessElementsBuilder(Base):
         if isinstance(node, Event) and node.class_sub_type not in (MESSAGE_EVENT, TIMER_EVENT):
             node.class_type = START_EVENT
             node.class_sub_type = None
-            node.sub_type = None
+            node.class_spec = None
 
         return False
 
@@ -169,7 +159,7 @@ class ProcessElementsBuilder(Base):
         if WordNetWrapper.is_verb_of_type(element.f_name, END_VERB):
             # A process model can end with a Message event
             if isinstance(node, Event):
-                if node.class_type == END_EVENT or (node.class_sub_type == MESSAGE_EVENT and node.sub_type == THROWING_EVENT):
+                if node.class_type == END_EVENT or (node.class_sub_type == MESSAGE_EVENT and node.class_spec == THROWING_EVENT):
                     return False
             self.transform_end_event(node)
             return True
@@ -189,7 +179,9 @@ class ProcessElementsBuilder(Base):
             if not action.f_actorFrom:
                 message_event = Event(action, INTERMEDIATE_EVENT, MESSAGE_EVENT)
                 if WordNetWrapper.is_verb_of_type(action.f_name, SEND_VERB):
-                    message_event.sub_type = THROWING_EVENT
+                    message_event.class_spec = THROWING_EVENT
+                else:
+                    message_event.class_spec = CATCHING_EVENT
                 return message_event
 
         if action.f_marker in f_conditionIndicators:
@@ -356,23 +348,6 @@ class ProcessElementsBuilder(Base):
         else:
             text += spec.f_name
         return text
-
-    @staticmethod
-    def has_hidden_action(obj):
-        can_be_gerund = False
-        for spec in obj.get_specifiers(PP):
-            if spec.f_name.startswith(OF):
-                can_be_gerund = True
-                break
-
-        if not can_be_gerund:
-            return False
-
-        for word in obj.f_name.split():
-            if WordNetWrapper.derive_verb(word):
-                return True
-
-        return False
 
     @staticmethod
     def is_event_action(action):

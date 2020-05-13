@@ -221,9 +221,7 @@ class MetadataGenerator(Base):
             else:
                 node_type = node.type
         elif isinstance(node, Event):
-            # TODO: check event sub_type
-            node_type = node.class_sub_type + node.class_type if node.class_sub_type else node.class_type
-            # node_type = node.class_type
+            node_type = node.class_sub_type + node.class_type
 
         return node_type.upper()
 
@@ -317,9 +315,6 @@ class MetadataGenerator(Base):
             candidates.append(element.f_word_index)
         elif isinstance(element, Action):
             candidates.append(element.f_word_index)
-
-            if element.pcomp:
-                candidates.append(element.pcompPos)
 
             if element.f_aux:
                 candidates[0] -= 1

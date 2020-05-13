@@ -6,8 +6,7 @@ import arrowBackCircleOutline from '@iconify/icons-ion/arrow-back-circle-outline
 import userIcon from '@iconify/icons-bpmn/user';
 
 const precedence = ["lane", "startevent", "endevent", "xorjoin", "andjoin", "orjoin", "xorsplit", "andsplit", "orsplit",
-                    "errorintermediateevent", "conditionalintermediateevent", "timerintermediateevent", "messageintermediateevent", 
-                    "intermediateevent", "task"]
+                    "conditionalintermediateevent", "timerintermediateevent", "messageintermediateevent", "intermediateevent", "task"]
 const stdColor = "black"
 
 function OutputSection(props) {
@@ -20,13 +19,12 @@ function OutputSection(props) {
   const handlePopoverShow = (snippet, id) => {
     if (snippet) {
       var popover = {};
-      var elementData = selectedMarkers[snippet.processElementType.toLowerCase()];
 
       popover.id = id;
-      popover.title = elementData.marker;
+      popover.title = snippet.marker;
       popover.level = snippet.level;
       popover.lane = snippet.lane;
-      popover.icon = elementData.icon;
+      popover.icon = snippet.icon;
 
       setPopoverData(popover);
       setPopoverOpen(true);
@@ -65,7 +63,6 @@ function OutputSection(props) {
         var sentence = sentences[sentenceId];
         var snippetMap = {};
         var markerMap = {};
-        var iconMap = {};
 
         for (var snippet of sentence.snippetList.values()) {
           var elementType = snippet.processElementType.toLowerCase();
@@ -77,21 +74,26 @@ function OutputSection(props) {
             for (var wordIndex = snippet.startIndex; wordIndex <= snippet.endIndex; wordIndex++) {
               var currentMap = snippetMap[wordIndex];
 
-              if (!currentMap || precedence.indexOf(currentMap.processElementType.toLowerCase()) >= precedence.indexOf(elementType)) {
+              if (!currentMap || precedence.indexOf(currentMap.processElementType) >= precedence.indexOf(elementType)) {
                 if (!snippet.isBranch || snippet.isExplicit) {
                   snippetMap[wordIndex] = {
-                    processElementType : snippet.processElementType,
+                    marker : markerData.marker,
+                    processElementType : elementType,
                     resourceId : snippet.resourceId,
                     level : snippet.level,
                     lane : resource ? resource.name : ""
                   };
                 }
-                if (wordIndex === snippet.startIndex && !snippet.hideIcon)
-                  iconMap[wordIndex] = markerData.icon;
+                if (wordIndex === snippet.startIndex && !snippet.isBranch && snippetMap[wordIndex]) {
+                  snippetMap[wordIndex].icon = markerData.icon;
+                }
               }
 
               if (wordIndex === snippet.startIndex && snippet.isBranch) {
-                markerMap[wordIndex] = snippet.processElementType.replace("SPLIT", "BRANCH");
+                markerMap[wordIndex] = {
+                  text : elementType.replace("split", "branch").toUpperCase(),
+                  icon : !snippet.hideIcon ? markerData.icon : null
+                };
               }
             }
           }
@@ -101,18 +103,21 @@ function OutputSection(props) {
 
         for (var wordIndex = 0; wordIndex < words.length; wordIndex++) {          
           var snippet = snippetMap[wordIndex];
-          
-          if (iconMap[wordIndex])
-            text.push({icon : iconMap[wordIndex]});
+          var marker = markerMap[wordIndex];
 
-          if (markerMap[wordIndex])
-            text.push({marker : markerMap[wordIndex]});
+          if (marker) {
+            if (marker.icon)
+              text.push({icon : marker.icon});
+            text.push({marker : marker.text});
+          }
 
           var color = null;
 
           if (snippet) {
-            var elementType = snippet.processElementType.toLowerCase();
+            var elementType = snippet.processElementType;
             color = selectedMarkers[elementType].color;
+            if (snippet.icon)
+              text.push({icon : snippet.icon});
           }
 
           text.push({color, word : words[wordIndex], snippet});

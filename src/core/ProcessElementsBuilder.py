@@ -66,7 +66,7 @@ class ProcessElementsBuilder(Base):
         for flow in self.f_world.f_flows:
             if flow.f_type == SEQUENCE and len(flow.f_multiples) == 1:
                 node = self.to_process_node(flow.f_single)
-                timer_event = self.check_timer_event(flow.f_single)
+                timer_event = self.check_timer_event(flow.f_multiples[0])
                 if timer_event:
                     self.f_model.nodes.append(timer_event)
                     self.add_to_same_lane(node, timer_event)
@@ -148,7 +148,7 @@ class ProcessElementsBuilder(Base):
         # A process model can start with a Message event
         if isinstance(node, Event) and node.class_sub_type not in (MESSAGE_EVENT, TIMER_EVENT):
             node.class_type = START_EVENT
-            node.class_sub_type = None
+            node.class_sub_type = ""
             node.class_spec = None
 
         return False
@@ -240,15 +240,6 @@ class ProcessElementsBuilder(Base):
             gateway.type = INCLUSIVE_GATEWAY
         else:
             gateway.type = EXCLUSIVE_GATEWAY
-            # Default type
-            # gateway.type = EVENT_BASED_GATEWAY
-            # for action in flow.f_multiples:
-            #     node = self.f_action_flow_map.get(action)
-            #     if isinstance(node, Event) and node.class_type == INTERMEDIATE_EVENT and not node.class_sub_type:
-            #         continue
-            #     else:
-            #         gateway.type = EXCLUSIVE_GATEWAY
-            #         break
 
         self.f_model.nodes.append(gateway)
         return gateway

@@ -89,7 +89,7 @@ class WordNetWrapper(Base):
     def is_verb_of_type(self, verb, verb_type):
         synsets = wn.synsets(verb, POS_VERB)
         if len(synsets) > 0:
-            return self.check_hypernym_tree(synsets, [verb_type])
+            return self.check_hypernym_tree(synsets, [verb_type], levels=2)
         else:
             self.logger.info("Could not find Verb {} of type {}".format(verb, verb_type))
             return False
@@ -137,24 +137,26 @@ class WordNetWrapper(Base):
 
         return derived_verb
 
-    def check_hypernym_tree(self, synsets, word_list):
+    def check_hypernym_tree(self, synsets, word_list, levels=-1):
         for synset in synsets:
             if len(synset.instance_hypernyms()) == 0:
-                if self.can_be(synset, word_list, []):
+                if self.can_be(synset, word_list, [], levels):
                     return True
 
         return False
 
-    def can_be(self, synset, word_list, checked):
+    def can_be(self, synset, word_list, checked, levels):
         if synset not in checked:
             checked.append(synset)
             for lemma in self.get_lemmas(synset):
                 if lemma in word_list:
                     return True
 
-            for hypernym in synset.hypernyms():
-                if self.can_be(hypernym, word_list, checked):
-                    return True
+            if levels != 0:
+                levels -= 1
+                for hypernym in synset.hypernyms():
+                    if self.can_be(hypernym, word_list, checked, levels):
+                        return True
 
         return False
 

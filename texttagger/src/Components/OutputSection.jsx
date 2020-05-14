@@ -19,12 +19,13 @@ function OutputSection(props) {
   const handlePopoverShow = (snippet, id) => {
     if (snippet) {
       var popover = {};
+      var elementData = selectedMarkers[snippet.processElementType];
 
       popover.id = id;
-      popover.title = snippet.marker;
+      popover.title = elementData.marker;
       popover.level = snippet.level;
       popover.lane = snippet.lane;
-      popover.icon = snippet.icon;
+      popover.icon = elementData.icon;
 
       setPopoverData(popover);
       setPopoverOpen(true);
@@ -77,7 +78,6 @@ function OutputSection(props) {
               if (!currentMap || precedence.indexOf(currentMap.processElementType) >= precedence.indexOf(elementType)) {
                 if (!snippet.isBranch || snippet.isExplicit) {
                   snippetMap[wordIndex] = {
-                    marker : markerData.marker,
                     processElementType : elementType,
                     resourceId : snippet.resourceId,
                     level : snippet.level,

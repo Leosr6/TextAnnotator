@@ -56,7 +56,7 @@ class MetadataGenerator(Base):
                 if flow.f_direction == SPLIT:
                     for branch in flow.f_multiples:
                         action_branch_map.setdefault((branch.f_sentence.f_id, branch.f_word_index), []).append(branch)
-                        if flow.f_type == CHOICE and branch.f_marker not in (OTHERWISE, WHEREAS) and branch.f_preAdvMod not in (OTHERWISE, WHEREAS):
+                        if flow.f_type == CHOICE and branch.f_marker == IF:
                             branch_actions.add(branch)
 
         for branch_list in action_branch_map.values():

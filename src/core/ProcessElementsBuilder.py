@@ -156,7 +156,7 @@ class ProcessElementsBuilder(Base):
     def check_end_event(self, node):
         element = node.element
 
-        if WordNetWrapper.is_verb_of_type(element.f_name, END_VERB):
+        if element.label == VBN and WordNetWrapper.is_verb_of_type(element.f_name, END_VERB):
             # A process model can end with a Message event
             if isinstance(node, Event):
                 if node.class_type == END_EVENT or (node.class_sub_type == MESSAGE_EVENT and node.class_spec == THROWING_EVENT):

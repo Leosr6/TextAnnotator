@@ -22,6 +22,9 @@ class Element:
         types = (types,) if isinstance(types, str) else types
         return [spec for spec in self.f_specifiers if spec.f_type in types]
 
+    def get_index(self):
+        return self.f_sentence.f_id, self.f_word_index
+
 
 class ExtractedObject(Element):
 
@@ -69,6 +72,9 @@ class Action(Element):
         self.f_link = None
         self.f_linkType = None
         self.f_transient = False
+
+    def get_full_index(self):
+        return self.f_sentence.f_id, self.f_word_index, self.f_object.f_word_index if self.f_object else 0
 
 
 class Actor(ExtractedObject):

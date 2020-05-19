@@ -560,7 +560,20 @@ class SentenceAnalyzer(Base):
             action_from = self.get_action_containing(dep['governor'])
             action_to = self.get_action_containing(dep['dependent'])
             if action_from and action_to:
-                self.build_link(action_from, dep, action_to)
+                if not self.find_conjunction(action_from, dep, action_to):
+                    self.build_link(action_from, dep, action_to)
+
+    def find_conjunction(self, action_from, dep, action_to):
+        for conj in self.f_analyzed_sentence.f_conjs:
+            if dep['spec'] == conj.f_type:
+                if action_from == conj.f_from and action_to == conj.f_to:
+                    return True
+                elif action_from.f_actorFrom == conj.f_from and action_to.f_actorFrom == conj.f_to:
+                    return True
+                elif action_from.f_object == conj.f_from and action_to.f_object == conj.f_to:
+                    return True
+
+        return False
 
     def get_action_containing(self, node_index):
         for action in self.f_analyzed_sentence.f_actions:

@@ -15,8 +15,7 @@ class MetadataGenerator(Base):
         self.element_id_map = {}
         self.process_nodes = {}
         self.process_gateways = {}
-        self.branch_actions = {}
-        self.retricted_actions = {}
+        self.decision_actions = {}
 
     def create_metadata(self):
 
@@ -45,35 +44,39 @@ class MetadataGenerator(Base):
 
         nodes = set()
         gateways = set()
-        ignored_actions = set()
-        restricted_actions = set()
-        branch_actions = set()
+        ignored_indexes = set()
+        decision_actions = set()
 
-        action_branch_map = {}
-        for node in self.model_builder.f_model.nodes:
-            if isinstance(node, Gateway):
-                flow = node.element
-                if flow.f_direction == SPLIT:
-                    for branch in flow.f_multiples:
-                        action_branch_map.setdefault((branch.f_sentence.f_id, branch.f_word_index), []).append(branch)
-                        if flow.f_type == CHOICE and branch.f_marker == IF:
-                            branch_actions.add(branch)
-
-        for branch_list in action_branch_map.values():
-            if len(branch_list) > 1:
-                restricted_actions.add(branch_list[0])
-                ignored_actions.update(branch_list[1:])
-
-        self.retricted_actions = restricted_actions
-        self.branch_actions = branch_actions
-        ignored_actions.update(branch_actions)
+        node_index_map = {}
 
         for node in self.model_builder.f_model.nodes:
-            if isinstance(node, Gateway):
+            if isinstance(node, Lane):
+                nodes.add(node)
+            elif isinstance(node, Task) or isinstance(node, Event):
+                element = node.element
+                node_index_map.setdefault(element.get_index(), []).append(node)
+            elif isinstance(node, Gateway):
                 gateways.add(node)
-            elif not isinstance(node, Pool) and node.element not in ignored_actions:
+                flow = node.element
+                if flow.f_direction == SPLIT and flow.f_type == CHOICE:
+                    for branch in flow.f_multiples:
+                        if branch.f_marker == IF:
+                            decision_actions.add(branch)
+
+        for branch_action in decision_actions:
+            ignored_indexes.add(branch_action.get_index())
+
+        for node_list in node_index_map.values():
+            if len(node_list) > 1:
+                node_list.sort(key=lambda node_rep: node_rep.element.get_full_index())
+                node = node_list[-1]
+            else:
+                node = node_list[0]
+            element = node.element
+            if element.get_index() not in ignored_indexes:
                 nodes.add(node)
 
+        self.decision_actions = decision_actions
         self.process_nodes = nodes
         self.process_gateways = gateways
 
@@ -167,11 +170,11 @@ class MetadataGenerator(Base):
         element = self.get_next_element(gateway)
 
         branches = gateway.element.f_multiples
-        branches.sort(key=lambda action: (action.f_sentence.f_id, action.f_word_index))
+        branches.sort(key=lambda action: action.get_full_index())
+        last_branch = branches[-1]
 
-        if element:
+        if element and element.f_word_index > last_branch.f_word_index:
             sentence = element.f_sentence.f_tree.leaves()
-            last_branch = branches[-1]
             for indicator in WordNetWrapper.accepted_forward_links:
                 part = indicator.split()
                 indicator_index = Search.find_array_part(sentence, part)
@@ -182,8 +185,11 @@ class MetadataGenerator(Base):
                             end_index = indicator_index + len(part) - 1
                             explicit = True
 
+        branch_indexes_map = set()
         if not explicit:
-            element = branches[-1]
+            for branch_action in branches:
+                branch_indexes_map.add(branch_action.get_index())
+            element = self.find_branch_element(gateway, last_branch) if len(branch_indexes_map) == 1 else last_branch
             start_index = self.get_element_end_index(element) + 1
             end_index = start_index
 
@@ -269,10 +275,10 @@ class MetadataGenerator(Base):
         if node.type == EXCLUSIVE_GATEWAY:
             if element.f_marker in f_conditionIndicators:
                 start_index = element.f_markerPos
-                end_index = self.get_element_end_index(element) if element in self.branch_actions else start_index
+                end_index = self.get_element_end_index(element) if element in self.decision_actions else start_index
             elif element.f_preAdvMod in f_conditionIndicators:
                 start_index = element.f_preAdvModPos
-                end_index = self.get_element_end_index(element) if element in self.branch_actions else start_index
+                end_index = self.get_element_end_index(element) if element in self.decision_actions else start_index
         elif node.type == PARALLEL_GATEWAY:
             if element.f_marker in f_parallelIndicators:
                 start_index = element.f_markerPos
@@ -344,20 +350,19 @@ class MetadataGenerator(Base):
             if element.f_cop:
                 candidates.append(element.f_copIndex)
 
-            if element not in self.retricted_actions:
-                if not xcomp:
-                    for spec in element.f_specifiers:
+            if not xcomp:
+                for spec in element.f_specifiers:
+                    if spec.f_word_index > element.f_word_index:
+                        candidates.append(spec.f_word_index + spec.f_name.count(" "))
+
+            if element.f_object:
+                if element.f_object.f_word_index > element.f_word_index:
+                    candidates.append(element.f_object.f_word_index + element.f_object.f_name.count(" "))
+                    for spec in element.f_object.f_specifiers:
                         if spec.f_word_index > element.f_word_index:
                             candidates.append(spec.f_word_index + spec.f_name.count(" "))
 
-                if element.f_object:
-                    if element.f_object.f_word_index > element.f_word_index:
-                        candidates.append(element.f_object.f_word_index + element.f_object.f_name.count(" "))
-                        for spec in element.f_object.f_specifiers:
-                            if spec.f_word_index > element.f_word_index:
-                                candidates.append(spec.f_word_index + spec.f_name.count(" "))
-
-                if element.f_xcomp:
-                    candidates.append(self.get_element_end_index(element.f_xcomp, xcomp=True))
+            if element.f_xcomp:
+                candidates.append(self.get_element_end_index(element.f_xcomp, xcomp=True))
 
         return max(candidates, default=1)

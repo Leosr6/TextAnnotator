@@ -161,13 +161,13 @@ class TextAnalyzer(Base):
                     next_mark = None
                 if (action.f_marker in f_conditionIndicators and not action.f_markerFromPP) or action.f_preAdvMod in f_conditionIndicators:
                     next_mark = THEN
-                    self.determine_conjunct_elements(analyzed_sentence.f_conjs, action, linked, actions)
+                    self.determine_conjunct_elements(copy(analyzed_sentence.f_conjs), action, linked, actions)
 
         for analyzed_sentence in self.f_analyzed_sentences:
             actions = analyzed_sentence.f_actions
             for action in actions:
                 linked = []
-                self.determine_conjunct_elements(analyzed_sentence.f_conjs, action, linked, actions)
+                self.determine_conjunct_elements(copy(analyzed_sentence.f_conjs), action, linked, actions)
                 if len(linked) > 1:
                     for linked_action in linked:
                         if not linked_action.f_preAdvMod:
@@ -227,7 +227,7 @@ class TextAnalyzer(Base):
         for sentence in self.f_analyzed_sentences:
             stanford_sentence = sentence.f_sentence
             actions = sentence.f_actions
-            conjs = sentence.f_conjs
+            conjs = copy(sentence.f_conjs)
             processed = []
             for action in actions:
                 if action.f_link and action.f_linkType == JUMP:
@@ -267,7 +267,7 @@ class TextAnalyzer(Base):
                             self.create_dummy_node(came_from, flow)
                             if len(came_from) > 1:
                                 flow = self.join_with_dummy_node(came_from, stanford_sentence, flow)
-                            self.handle_mixed_situation(stanford_sentence, flow, conjs, actions, came_from)
+                            self.handle_mixed_situation(stanford_sentence, flow, sentence.f_conjs, actions, came_from)
                             processed.extend(actions)
 
             for action in actions:
@@ -315,11 +315,12 @@ class TextAnalyzer(Base):
                             flow_in.f_multiples.append(action)
 
         # When the text ends in a SPLIT, we must create a JOIN for it
-        if len(open_split) > 0:
+        came_from.extend(open_split)
+        if len(came_from) > 1:
             dummy_flow = Flow(stanford_sentence)
             dummy_action = DummyAction(action)
             self.f_world.add_action(dummy_action)
-            self.build_join(dummy_flow, came_from + open_split, dummy_action)
+            self.build_join(dummy_flow, came_from, dummy_action)
             self.f_world.add_flow(dummy_flow)
 
     def to_element(self, sentence_word_id):
@@ -495,7 +496,7 @@ class TextAnalyzer(Base):
 
             analyzed_sentence = self.f_analyzed_sentences[target.f_sentence.f_id]
             result = []
-            conj_type, conj_status = self.determine_conjunct_elements(analyzed_sentence.f_conjs, target, result, analyzed_sentence.f_actions)
+            conj_type, conj_status = self.determine_conjunct_elements(copy(analyzed_sentence.f_conjs), target, result, analyzed_sentence.f_actions)
             if conj_type == OR or target.f_marker == IF or target.f_preAdvMod in f_sequenceIndicators:
                 return JUMP
         else:
@@ -513,28 +514,36 @@ class TextAnalyzer(Base):
 
     def determine_conjunct_elements(self, conjunctions, action, conjoined, actions):
         conj_type = None
+        conj_status = NOT_CONTAINED
         conjoined.append(action)
-        status = NOT_CONTAINED
+        conjs_used = []
 
         for conj in conjunctions:
             if not conj_type or conj_type == conj.f_type:
                 status = self.is_part_of(conj.f_from, conjoined)
+                target = conj.f_to
                 if status == NOT_CONTAINED:
                     status = self.is_part_of(conj.f_to, conjoined)
-                if status != NOT_CONTAINED:
-                    link = Search.get_action(actions, conj.f_to)
+                    target = conj.f_from
+                if status != NOT_CONTAINED and conj_status in (NOT_CONTAINED, status):
+                    link = Search.get_action(actions, target)
                     if link:
                         if link not in conjoined:
                             conjoined.append(link)
+                            conjs_used.append(conj)
                             if not conj_type:
+                                conj_status = status
                                 conj_type = conj.f_type
                     else:
                         self.logger.error("Unable to determine action from link {}".format(conj.f_to))
-            elif conj_type:
-                if conj_type == AND and status == ACTOR_SUBJECT and conj.f_type != AND:
-                    conj_type = MIXED
+            # elif conj_type:
+            #     if conj_type == AND and conj_status == ACTOR_SUBJECT and conj.f_type != AND:
+            #         conj_type = MIXED
 
-        return conj_type, status
+        for conj in conjs_used:
+            conjunctions.remove(conj)
+
+        return conj_type, conj_status
 
     def handle_single_action(self, stanford_sentence, flow, action, came_from, open_split):
         if action.f_marker != IF and action.f_preAdvMod != OTHERWISE and action.f_preAdvMod not in f_sequenceIndicators and len(open_split) > 0:

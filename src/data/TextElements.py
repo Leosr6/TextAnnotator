@@ -16,6 +16,6 @@ class DummyAction(Action):
 
     def __init__(self, action=None):
         if action:
-            super().__init__(action.f_sentence, action.f_word_index + 1, DUMMY_NODE, action.label)
+            super().__init__(action.f_sentence, action.f_word_index + 1, DUMMY_NODE)
         else:
-            super().__init__(None, -1, DUMMY_NODE, None)
+            super().__init__(None, -1, DUMMY_NODE)

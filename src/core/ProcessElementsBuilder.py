@@ -138,8 +138,8 @@ class ProcessElementsBuilder(Base):
 
     def process_meta_activities(self):
         for node in self.f_model.nodes:
-            element = node.element
-            if isinstance(element, Action):
+            if isinstance(node, Task):
+                element = node.element
                 if element.f_actorFrom and element.f_actorFrom.f_metaActor:
                     self.check_end_event(node)
                     self.check_duplicated_start(node)
@@ -156,7 +156,7 @@ class ProcessElementsBuilder(Base):
     def check_end_event(self, node):
         element = node.element
 
-        if element.label == VBN and WordNetWrapper.is_verb_of_type(element.f_name, END_VERB):
+        if WordNetWrapper.is_verb_of_type(element.f_name, END_VERB):
             # A process model can end with a Message event
             if isinstance(node, Event):
                 if node.class_type == END_EVENT or (node.class_sub_type == MESSAGE_EVENT and node.class_spec == THROWING_EVENT):
@@ -342,18 +342,17 @@ class ProcessElementsBuilder(Base):
 
     @staticmethod
     def is_event_action(action):
-        # Checking if the verb is in the past participle
-        if action.label == VBN:
-            if (action.f_preAdvMod and not action.preAdvModFromSpec) or action.f_marker:
-                sentence = str(action.f_sentence).lower()
-                min_index = action.f_preAdvModPos if action.f_preAdvMod else action.f_markerPos
-                # Checking if the sentence contains any indicators that the activity has finished
-                for indicator in finishedIndicators:
-                    indicator_index = sentence.find(indicator)
-                    if indicator_index != -1:
-                        indicator_index += len(indicator.split())
-                        if min_index <= indicator_index <= action.f_word_index:
-                            return True
+        if (action.f_preAdvMod and not action.preAdvModFromSpec and action.f_preAdvMod != SOON) or action.f_marker:
+            sentence = str(action.f_sentence).lower()
+            s_id = action.f_sentence.f_id
+            min_index = max((s_id, action.f_preAdvModPos), (s_id, action.f_markerPos))
+            # Checking if the sentence contains any indicators that the activity has finished
+            for indicator in finishedIndicators:
+                indicator_index = sentence.find(indicator)
+                if indicator_index != -1:
+                    indicator_index += len(indicator.split())
+                    if min_index <= (s_id, indicator_index) <= action.get_index():
+                        return True
 
         return False
 

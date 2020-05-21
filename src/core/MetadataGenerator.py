@@ -325,12 +325,6 @@ class MetadataGenerator(Base):
             if element.f_aux:
                 candidates[0] -= 1
 
-            if element.f_object:
-                det = 1 if element.f_object.f_determiner else 0
-                candidates.append(element.f_object.f_word_index - det)
-                for spec in element.f_object.f_specifiers:
-                    candidates.append(spec.f_word_index - det)
-
         return min([candidate for candidate in candidates if candidate > 0], default=1)
 
     def get_element_end_index(self, element, xcomp=False):

@@ -105,6 +105,7 @@ EXCEPT = "except"
 IFCOMPLM = "if-complm"
 THEN = "then"
 ALSO = "also"
+SOON = "soon"
 
 """
     TODO: write description

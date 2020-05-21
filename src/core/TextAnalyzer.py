@@ -173,6 +173,10 @@ class TextAnalyzer(Base):
                         if not linked_action.f_preAdvMod:
                             linked_action.f_preAdvMod = action.f_preAdvMod
                             linked_action.f_preAdvModPos = -1
+                        if not linked_action.f_marker and action.f_marker:
+                            if Search.starts_with(finishedIndicators, action.f_marker):
+                                linked_action.f_marker = action.f_marker
+                                linked_action.f_markerPos = action.f_markerPos
 
         for analyzed_sentence in self.f_analyzed_sentences:
             actions = analyzed_sentence.f_actions

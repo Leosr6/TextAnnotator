@@ -137,12 +137,18 @@ class ProcessElementsBuilder(Base):
                     self.check_start_event(node)
 
     def process_meta_activities(self):
-        for node in self.f_model.nodes:
+        current_nodes = copy(self.f_model.nodes)
+
+        for node in current_nodes:
             if isinstance(node, Task):
                 element = node.element
                 if element.f_actorFrom and element.f_actorFrom.f_metaActor:
                     self.check_end_event(node)
-                    self.check_duplicated_start(node)
+                    if WordNetWrapper.is_verb_of_type(element.f_name, START_VERB) or WordNetWrapper.is_verb_of_type(element.f_name, CONSIST_VERB)\
+                            or WordNetWrapper.is_verb_of_type(element.f_name, CONTINUE_VERB):
+                        self.remove_node(node)
+                if element.f_baseForm == BE and not element.f_xcomp:
+                    self.remove_node(node)
 
     def check_start_event(self, node):
         # A process model can start with a Message event
@@ -165,14 +171,6 @@ class ProcessElementsBuilder(Base):
             return True
 
         return False
-
-    def check_duplicated_start(self, node):
-        element = node.element
-
-        if WordNetWrapper.is_verb_of_type(element.f_name, START_VERB):
-            predecessors = self.f_model.get_predecessors(node)
-            if len(predecessors) == 1 and isinstance(predecessors[0], Event) and predecessors[0].class_type == START_EVENT:
-                self.remove_node(node)
 
     def create_event_node(self, action):
         if WordNetWrapper.is_verb_of_type(action.f_name, SEND_VERB) or WordNetWrapper.is_verb_of_type(action.f_name, RECEIVE_VERB):

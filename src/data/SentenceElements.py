@@ -64,6 +64,7 @@ class Action(Element):
         self.f_marker = None
         self.f_markerFromPP = False
         self.f_markerPos = -1
+        self.realMarker = None
         self.f_preAdvMod = None
         self.f_preAdvModPos = -1
         self.preAdvModFromSpec = False

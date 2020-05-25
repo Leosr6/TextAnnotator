@@ -278,6 +278,8 @@ END_VERB = "end"
 START_VERB = "start"
 SEND_VERB = "send"
 RECEIVE_VERB = "receive"
+CONSIST_VERB = "consist"
+CONTINUE_VERB = "continue"
 
 """
     TODO: write description

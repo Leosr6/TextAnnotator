@@ -2,7 +2,6 @@ from core.Base import Base
 from data.BPMNElements import *
 from data.TextElements import *
 from data.SentenceElements import *
-from utils import Search
 from utils.Constants import *
 from copy import copy
 
@@ -173,23 +172,19 @@ class MetadataGenerator(Base):
         branches.sort(key=lambda action: action.get_full_index())
         last_branch = branches[-1]
 
-        if element and element.f_word_index > last_branch.f_word_index:
-            sentence = element.f_sentence.f_tree.leaves()
+        if element and element.get_index() > last_branch.get_index():
+            sentence = " ".join(element.f_sentence.f_tree.leaves())
             for indicator in WordNetWrapper.accepted_forward_links:
-                part = indicator.split()
-                indicator_index = Search.find_array_part(sentence, part)
-                if indicator_index != -1:
+                indicator_index = sentence.find(indicator) + 1
+                if indicator_index != 0:
                     if element.f_word_index > indicator_index:
                         if (element.f_sentence.f_id, indicator_index) > (last_branch.f_sentence.f_id, self.get_element_end_index(last_branch)):
                             start_index = indicator_index
-                            end_index = indicator_index + len(part) - 1
+                            end_index = indicator_index + indicator.count(" ")
                             explicit = True
 
-        branch_indexes_map = set()
         if not explicit:
-            for branch_action in branches:
-                branch_indexes_map.add(branch_action.get_index())
-            element = self.find_branch_element(gateway, last_branch) if len(branch_indexes_map) == 1 else last_branch
+            element = last_branch
             start_index = self.get_element_end_index(element) + 1
             end_index = start_index
 
@@ -273,16 +268,22 @@ class MetadataGenerator(Base):
         explicit = True
 
         if node.type == EXCLUSIVE_GATEWAY:
-            if element.f_marker in f_conditionIndicators:
+            if element.f_marker in f_conditionIndicators and element.f_markerPos > 0:
                 start_index = element.f_markerPos
-                end_index = self.get_element_end_index(element) if element in self.decision_actions else start_index
-            elif element.f_preAdvMod in f_conditionIndicators:
+                if element in self.decision_actions:
+                    end_index = self.get_element_end_index(element)
+                else:
+                    end_index = start_index if not element.realMarker else start_index + element.realMarker.count(" ")
+            elif element.f_preAdvMod in f_conditionIndicators and element.f_preAdvModPos > 0:
                 start_index = element.f_preAdvModPos
-                end_index = self.get_element_end_index(element) if element in self.decision_actions else start_index
+                if element in self.decision_actions:
+                    end_index = self.get_element_end_index(element)
+                else:
+                    end_index = start_index
         elif node.type == PARALLEL_GATEWAY:
-            if element.f_marker in f_parallelIndicators:
+            if element.f_marker in f_parallelIndicators and element.f_markerPos > 0:
                 start_index = element.f_markerPos
-                end_index = start_index
+                end_index = start_index if not element.realMarker else start_index + element.realMarker.count(" ")
 
         if not start_index or not end_index:
             element_to_mark = self.find_branch_element(node, element)

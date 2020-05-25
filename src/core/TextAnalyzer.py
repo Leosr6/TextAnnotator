@@ -134,6 +134,8 @@ class TextAnalyzer(Base):
                     if Search.starts_with(f_conditionIndicators, spec.f_name) and not action.f_marker:
                         self.logger.debug("Marking {} with marker {} if".format(action, spec.f_name))
                         action.f_marker = IF
+                        action.f_markerPos = spec.f_word_index
+                        action.realMarker = spec.f_name
                         if spec.f_name not in f_conditionIndicators:
                             action.f_markerFromPP = True
 
@@ -146,6 +148,8 @@ class TextAnalyzer(Base):
                     if spec.f_name in f_parallelIndicators and not action.f_marker:
                         self.logger.debug("Marking {} with marker {} while".format(action, spec.f_name))
                         action.f_marker = WHILE
+                        action.f_markerPos = spec.f_word_index
+                        action.realMarker = spec.f_name
 
         for analyzed_sentence in self.f_analyzed_sentences:
             stanford_sentence = analyzed_sentence.f_sentence
@@ -259,14 +263,12 @@ class TextAnalyzer(Base):
                                 self.create_dummy_node(came_from, flow)
                                 self.build_gateway(came_from, open_split, stanford_sentence, processed, flow, conjoined, CONCURRENCY)
                             else:
-                                if len(came_from) == 1:
-                                    self.handle_single_action(stanford_sentence, flow, conjoined[0], came_from, open_split)
-                                    processed.append(conjoined[0])
-                                elif len(came_from) > 1:
+                                if len(came_from) > 1:
                                     self.build_join(flow, came_from, conjoined[0])
                                     self.f_world.add_flow(flow)
                                 else:
-                                    came_from.append(conjoined[0])
+                                    self.handle_single_action(stanford_sentence, flow, conjoined[0], came_from, open_split)
+                                    processed.append(conjoined[0])
                         elif conj_type == MIXED:
                             self.create_dummy_node(came_from, flow)
                             if len(came_from) > 1:
@@ -560,11 +562,23 @@ class TextAnalyzer(Base):
             last_flow_added = self.f_world.f_lastFlowAdded
 
             if last_flow_added:
-                if action.f_marker == WHILE or last_flow_added.f_multiples[0].f_marker == WHILE:
-                    if last_flow_added.f_multiples[0].f_sentence == action.f_sentence:
-                        last_flow_added.f_multiples.append(action)
-                        last_flow_added.f_type = CONCURRENCY
-                        came_from.append(action)
+                open_parallel = last_flow_added.f_type == CONCURRENCY and last_flow_added.f_direction == SPLIT
+                open_while = last_flow_added.f_multiples[0].f_marker == WHILE and last_flow_added.f_direction == SPLIT
+                new_sentence = came_from[-1].f_sentence != action.f_sentence
+
+                if action.f_marker == WHILE and not open_parallel and new_sentence:
+                    flow.f_single = came_from[0]
+                    flow.f_multiples.append(action)
+                    flow.f_type = CONCURRENCY
+                    self.f_world.add_flow(flow)
+                    came_from.clear()
+                    came_from.append(action)
+                    return
+                if action.f_marker == WHILE or (open_while and not new_sentence):
+                    last_flow_added.f_multiples.append(action)
+                    last_flow_added.f_type = CONCURRENCY
+                    came_from.append(action)
+                    return
 
             if len(came_from) > 1:
                 dummy_flow = Flow(stanford_sentence)

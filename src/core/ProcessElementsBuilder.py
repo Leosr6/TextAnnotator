@@ -25,8 +25,8 @@ class ProcessElementsBuilder(Base):
         self.create_actions()
         self.build_sequence_flows()
         self.remove_dummies()
-        self.finish_dangling_ends()
         self.process_meta_activities()
+        self.finish_dangling_ends()
 
         if len(self.f_main_pool.process_nodes) == 0:
             self.f_model.remove_node(self.f_main_pool)
@@ -47,11 +47,13 @@ class ProcessElementsBuilder(Base):
                 self.f_action_flow_map[action.f_xcomp] = flow_object
 
             lane = None
-            if not WordNetWrapper.is_weak_action(action) and action.f_actorFrom:
+            if action.f_baseForm != BE and action.f_actorFrom:
                 lane = self.get_lane(action.f_actorFrom)
 
             if not lane:
-                if not self.f_last_pool:
+                if action.f_actorFrom and action.f_actorFrom.f_unreal:
+                    pass
+                elif not self.f_last_pool:
                     self.f_not_assigned.append(flow_object)
                 else:
                     self.f_last_pool.process_nodes.append(flow_object)
@@ -144,8 +146,7 @@ class ProcessElementsBuilder(Base):
                 element = node.element
                 if element.f_actorFrom and element.f_actorFrom.f_metaActor:
                     self.check_end_event(node)
-                    if WordNetWrapper.is_verb_of_type(element.f_name, START_VERB) or WordNetWrapper.is_verb_of_type(element.f_name, CONSIST_VERB)\
-                            or WordNetWrapper.is_verb_of_type(element.f_name, CONTINUE_VERB):
+                    if WordNetWrapper.is_verb_of_type(element.f_name, START_VERB) or WordNetWrapper.is_verb_of_type(element.f_name, CONSIST_VERB):
                         self.remove_node(node)
                 if element.f_baseForm == BE and not element.f_xcomp:
                     self.remove_node(node)

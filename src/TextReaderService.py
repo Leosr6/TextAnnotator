@@ -4,9 +4,9 @@ from socket import error
 import json
 from nltk.parse.corenlp import CoreNLPServer
 from flask import Flask, request, make_response
-from core.MetadataGenerator import MetadataGenerator
-from core.TextAnalyzer import TextAnalyzer
-from core.ProcessElementsBuilder import ProcessElementsBuilder
+from core.ProcessElementsIdentifier import ProcessElementsIdentifier
+from extraction.TextAnalyzer import TextAnalyzer
+from extraction.ProcessElementsBuilder import ProcessElementsBuilder
 
 
 app = Flask(__name__)
@@ -66,7 +66,7 @@ def generate_metadata(text):
     model_builder = ProcessElementsBuilder(f_world)
     model_builder.create_process_model()
 
-    text_generator = MetadataGenerator(text_analyzer, model_builder)
+    text_generator = ProcessElementsIdentifier(text_analyzer, model_builder)
 
     return text_generator.create_metadata()
 

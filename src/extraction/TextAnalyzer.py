@@ -2,7 +2,7 @@ from copy import *
 from core.CoreNLPWrapper import CoreNLPWrapper
 from core.Base import Base
 from data.WorldModel import WorldModel
-from core.SentenceAnalyzer import SentenceAnalyzer
+from extraction.SentenceAnalyzer import SentenceAnalyzer
 from data.StanfordSentence import StanfordSentence
 from data.SentenceElements import *
 from data.TextElements import *

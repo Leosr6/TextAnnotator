@@ -6,7 +6,7 @@ from utils import Search, Processing
 from utils.Constants import *
 
 
-class ElementsBuilder(Base):
+class SentenceElementsBuilder(Base):
 
     @classmethod
     def create_actor(cls, origin, full_sentence, node_index, dependencies):

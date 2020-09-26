@@ -6,7 +6,7 @@ from utils.Constants import *
 from copy import copy
 
 
-class MetadataGenerator(Base):
+class ProcessElementsIdentifier(Base):
 
     def __init__(self, text_analyzer, model_builder):
         self.text_analyzer = text_analyzer

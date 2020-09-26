@@ -1,6 +1,6 @@
 from copy import *
 from core.Base import Base
-from core.ElementsBuilder import ElementsBuilder as Builder
+from extraction.SentenceElementsBuilder import SentenceElementsBuilder as Builder
 from data.AnalyzedSentence import AnalyzedSentence
 from data.SentenceElements import *
 from utils import Search
